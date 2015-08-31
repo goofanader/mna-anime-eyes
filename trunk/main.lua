@@ -1,13 +1,24 @@
-hasJoystick = false
 s = require 'pixelateShader'
+require 'middleclass'
+require 'libraries/middleclass-commons'
+Player = require 'classes/player'
+
+hasJoystick = false
 DEFAULT_PIX_SIZE = 70
 DEFAULT_IMG_TIME = 18
 DEFAULT_SCREEN_WIDTH = 800
 DEFAULT_SCREEN_HEIGHT = 600
+TRIVIA_BUTTONS_NAME = "REAL ARCADE PRO.3"
+POINTS = 'points'
+NAME = 'name'
+INDEX = 'index'
 
 isDebugging = false
 isTesting = false
 isRandomFiles = false
+triviaButtons = nil
+contestantPointIndex = {}
+contestantPointsSorted = {}
 
 ---
 -- Splits a string on the given pattern, returned as a table of the delimited strings.
@@ -109,6 +120,10 @@ function love.load()
          require("mobdebug").start()
       end
    end
+   
+   -- start up a random number generator
+   rng = love.math.newRandomGenerator()
+   rng:setSeed(os.time())
 
    -- create the images directory if it doesn't exist yet
    if not love.filesystem.exists(love.filesystem.getSaveDirectory() .. "images") then
@@ -141,7 +156,10 @@ function love.load()
 
    print("checking out joysticks")
    for i = 1, #joysticks do
-      print(joysticks[i]:getName())
+      if joysticks[i]:getName() == TRIVIA_BUTTONS_NAME then
+         triviaButtons = joysticks[i]
+         print(joysticks[i]:getName() .. ": # buttons = " .. joysticks[i]:getButtonCount())
+      end
    end
    print("done with them joysticks")
    
@@ -185,6 +203,15 @@ function love.draw()
       love.graphics.setColor( 50, 205, 50, 255 )
       love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
    end
+   
+   -- print which button paused the game
+   if isPaused then
+      love.graphics.setColor( 50, 205, 50, 255 )
+      love.graphics.print(buttonString)
+      love.graphics.print("\nThe guesser is "..tostring(guesser))
+      love.graphics.setColor(255,255,255)
+   end
+   
 end
 
 -- Updates the shader with the correct amount of time left for the picture.
@@ -195,6 +222,59 @@ function love.update(dt)
 
    if not isEndGame then
       s.shader:send('time', gameTime)
+   end
+   
+   -- check for joystick buttons
+   local hasButtonDown = false
+   
+   if not isPaused then
+      buttonString = "buttons that paused game: "
+      local guessers = {}
+      
+      for i = 1, triviaButtons:getButtonCount() do
+         -- if there's a joystick button down, note which ones did so
+         if triviaButtons:isDown(i) then
+            if not hasButtonDown then
+               hasButtonDown = true
+            end
+            
+            -- TODO: remove this code as this creates a new player upon button hit. This should be done via command line for now.
+            if contestantPointIndex[i] == nil then
+               contestantPointIndex[i] = Player:new("Player "..i, i)
+            end
+            
+            table.insert(guessers, contestantPointIndex[i])
+         end
+      end
+      
+      -- pause the game if any joystick buttons were down
+      if hasButtonDown then
+         isPaused = true
+         
+         -- make a list of the guessers' indices for debug purposes
+         for index, guesser in ipairs(guessers) do
+            buttonString = buttonString .. guesser.index .. ","
+         end
+         
+         -- determine who gets to go first
+         if #guessers > 1 then
+            --sort the contestant points
+            table.sort(guessers,
+               function(a, b)
+                  -- if the points are equal, randomly move the positions
+                  if a.points == b.points then
+                     return rng:random() >= .5 and true or false
+                  end
+                  
+                  -- else, give the lower points people precedence
+                  return a.points < b.points
+               end
+            )
+         end
+         
+         -- set guesser to the first person in the guessers list
+         guesser = guessers[1]
+      end
    end
 end
 
