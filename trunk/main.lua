@@ -15,7 +15,7 @@ INDEX = 'index'
 
 isDebugging = false
 isTesting = false
-isRandomFiles = false
+isRandomFiles = true
 triviaButtons = nil
 contestantPointIndex = {}
 contestantPointsSorted = {}
@@ -155,6 +155,7 @@ function love.load()
    hasJoystick = #joysticks > 0
 
    print("checking out joysticks")
+   triviaButtons = nil
    for i = 1, #joysticks do
       if joysticks[i]:getName() == TRIVIA_BUTTONS_NAME then
          triviaButtons = joysticks[i]
@@ -231,19 +232,21 @@ function love.update(dt)
       buttonString = "buttons that paused game: "
       local guessers = {}
       
-      for i = 1, triviaButtons:getButtonCount() do
-         -- if there's a joystick button down, note which ones did so
-         if triviaButtons:isDown(i) then
-            if not hasButtonDown then
-               hasButtonDown = true
+      if triviaButtons ~= nil then
+         for i = 1, triviaButtons:getButtonCount() do
+            -- if there's a joystick button down, note which ones did so
+            if triviaButtons:isDown(i) then
+               if not hasButtonDown then
+                  hasButtonDown = true
+               end
+               
+               -- TODO: remove this code as this creates a new player upon button hit. This should be done via command line for now.
+               if contestantPointIndex[i] == nil then
+                  contestantPointIndex[i] = Player:new("Player "..i, i)
+               end
+               
+               table.insert(guessers, contestantPointIndex[i])
             end
-            
-            -- TODO: remove this code as this creates a new player upon button hit. This should be done via command line for now.
-            if contestantPointIndex[i] == nil then
-               contestantPointIndex[i] = Player:new("Player "..i, i)
-            end
-            
-            table.insert(guessers, contestantPointIndex[i])
          end
       end
       
