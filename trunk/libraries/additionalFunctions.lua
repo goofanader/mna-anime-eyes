@@ -1,3 +1,8 @@
+-- trim a string.
+function trim(s)
+  return s:match'^%s*(.*%S)' or ''
+end
+
 -- convert string to boolean
 function strToBool(str)
    if str == "true" then
@@ -51,7 +56,7 @@ end
 function fileToWindowsFile(str)
    local partsList = split(str, '/')
    local ret = ""
-   
+
    for i, part in pairs(partsList) do
       if i == 1 then
          ret = part
@@ -59,6 +64,6 @@ function fileToWindowsFile(str)
          ret = ret .. "\\" .. part
       end
    end
-   
+
    return ret
 end

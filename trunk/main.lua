@@ -120,7 +120,7 @@ function love.load()
          require("mobdebug").start()
       end
    end
-   
+
    -- start up a random number generator
    rng = love.math.newRandomGenerator()
    rng:setSeed(os.time())
@@ -143,13 +143,13 @@ function love.load()
 
    scaling = 1
    transX, transY = 0, 0
-   
+
    --set the filter to be linear so when the image clears, the lines are smoothed out
    love.graphics.setDefaultFilter("linear", "linear")
 
    gameTime = 0
    isEndGame = true
-   isPaused = false
+   isImagePaused = false
 
    local joysticks = love.joystick.getJoysticks()
    hasJoystick = #joysticks > 0
@@ -163,9 +163,17 @@ function love.load()
       end
    end
    print("done with them joysticks")
-   
+
    -- The only thing that needs to be sent to the shader is the game time. If this value is changed in-game, I'll update it then, but this is the one constant. All the other variables change with each new image.
    s.shader:send('imgTime', imgTime)
+
+   -- start thread
+   consoleThread = love.thread.newThread("consoleThread.lua")
+   channel = love.thread.getChannel("Console")
+   gameChannel = love.thread.getChannel("GameStart")
+   consoleThread:start()
+
+   --channel:supply(love.filesystem.getWorkingDirectory())
 end
 
 -- Draws the image to the screen.
@@ -200,65 +208,133 @@ function love.draw()
    end
 
    -- print the FPS and filename at the top left corner
-   if isTesting then
+   if isTesting and not isImagePaused then
       love.graphics.setColor( 50, 205, 50, 255 )
       love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
    end
-   
+
    -- print which button paused the game
-   if isPaused then
-      love.graphics.setColor( 50, 205, 50, 255 )
-      love.graphics.print(buttonString)
-      love.graphics.print("\nThe guesser is "..tostring(guesser))
-      love.graphics.setColor(255,255,255)
+   if isImagePaused then
+      if isTesting then
+        love.graphics.setColor( 50, 205, 50, 255 )
+        love.graphics.print(buttonString)
+        love.graphics.print("\nThe guesser is "..tostring(guesser))
+        love.graphics.setColor(255,255,255)
+      end
    end
-   
+
+   if isWaitingForPlayerButton ~= nil and love.window.hasFocus() then
+     love.graphics.setColor( 50, 205, 50, 255 )
+     love.graphics.print(isWaitingForPlayerButton .. ", press your button.", wd / 2.0, ht / 2.0)
+     love.graphics.setColor(255,255,255)
+   end
+
 end
+
+function printPrettyMessage(msg)
+  love.graphics.setColor()
+  love.graphics.print(msg)
+  love.graphics.setColor(255, 255, 255)
+end
+
+function handleChannel()
+   while channel:getCount() > 0 do
+     local action = channel:pop()
+     print("Action: "..action)
+     if action == "exit" then
+       --print("Exiting...")
+       love.event.quit()
+     elseif action == "fullscreen" then
+       setFullscreen()
+     elseif action == "reload" then
+       reloadImages()
+     elseif action == "pause" then
+       isImagePaused = not isImagePaused
+     elseif action:find("add || ") then
+       local playerName = split(action, " || ")[2]
+       isWaitingForPlayerButton = playerName
+     elseif action == "start" then
+       isWantingGameToStart = true
+       currImgIndex = 0
+       --moveToNextImage(1, #testImgNames + 1)
+     end
+   end
+
+   channel:clear()
+end
+
+function setFullscreen()
+  love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
+end
+
+function reloadImages()
+   isEndGame = true
+   currImgName = ""
+   currImgIndex = 0
+   gameTime = 0
+   love.mouse.setVisible(true)
+
+   local directory = isTesting and "testing" or "images"
+   testImgNames = loadImageFolder(directory)
+   testImg = {}
+ end
 
 -- Updates the shader with the correct amount of time left for the picture.
 function love.update(dt)
-   if not isEndGame and not isPaused then
+   handleChannel()
+
+   if isWantingGameToStart and love.window.hasFocus() then
+     isWantingGameToStart = false
+     moveToNextImage(1, #testImgNames + 1)
+     gameChannel:supply("started")
+   end
+
+   if not isEndGame and not isImagePaused then
       gameTime = gameTime + dt
    end
 
    if not isEndGame then
       s.shader:send('time', gameTime)
    end
-   
+
    -- check for joystick buttons
    local hasButtonDown = false
-   
-   if not isPaused then
+
+   if not isImagePaused then
       buttonString = "buttons that paused game: "
       local guessers = {}
-      
+
       if triviaButtons ~= nil then
          for i = 1, triviaButtons:getButtonCount() do
             -- if there's a joystick button down, note which ones did so
             if triviaButtons:isDown(i) then
-               if not hasButtonDown then
+               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil then
                   hasButtonDown = true
                end
-               
+
                -- TODO: remove this code as this creates a new player upon button hit. This should be done via command line for now.
-               if contestantPointIndex[i] == nil then
-                  contestantPointIndex[i] = Player:new("Player "..i, i)
+               if isWaitingForPlayerButton ~= nil and contestantPointIndex[i] == nil then
+                  contestantPointIndex[i] = Player:new(isWaitingForPlayerButton, i)
+
+                  local playerChannel = love.thread.getChannel("AddPlayer")
+                  playerChannel:supply("added || "..isWaitingForPlayerButton.." || "..i)
+                  isWaitingForPlayerButton = nil
                end
-               
+
                table.insert(guessers, contestantPointIndex[i])
             end
          end
       end
-      
+
       -- pause the game if any joystick buttons were down
       if hasButtonDown then
-         isPaused = true
-         
+         isImagePaused = true
+
          -- make a list of the guessers' indices for debug purposes
          for index, guesser in ipairs(guessers) do
             buttonString = buttonString .. guesser.index .. ","
          end
-         
+
          -- determine who gets to go first
          if #guessers > 1 then
             --sort the contestant points
@@ -266,15 +342,15 @@ function love.update(dt)
                function(a, b)
                   -- if the points are equal, randomly move the positions
                   if a.points == b.points then
-                     return rng:random() >= .5 and true or false
+                     return rng:random() >= .5 --and true or false
                   end
-                  
+
                   -- else, give the lower points people precedence
                   return a.points < b.points
                end
             )
          end
-         
+
          -- set guesser to the first person in the guessers list
          guesser = guessers[1]
       end
@@ -298,7 +374,8 @@ function love.keypressed(key, isrepeat)
    end
 
    if key == 'f' then -- set to fullscreen
-      love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
+      --love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
+      setFullscreen()
    end
 
    if key == '[' then -- move to previous image
@@ -308,7 +385,7 @@ function love.keypressed(key, isrepeat)
    end
 
    if key == 'r' then -- reload images folder, and eventually config.ini
-      isEndGame = true
+      --[[isEndGame = true
       currImgName = ""
       currImgIndex = 0
       gameTime = 0
@@ -316,11 +393,12 @@ function love.keypressed(key, isrepeat)
 
       local directory = isTesting and "testing" or "images"
       testImgNames = loadImageFolder(directory)
-      testImg = {}
+      testImg = {}]]
+      reloadImages()
    end
 
    if key == 'p' then -- pause or unpause the game
-      isPaused = not isPaused
+      isImagePaused = not isImagePaused
    end
 end
 
@@ -366,6 +444,10 @@ function moveToNextImage(increment, endIndex)
          scaleAndTranslateImage()
          gameTime = 0
       else -- we've finished going through the images
+         if not isEndGame then
+           gameChannel:push("GameOver")
+         end
+
          isEndGame = true
          currImgName = ""
          currImgIndex = endIndex
@@ -374,6 +456,7 @@ function moveToNextImage(increment, endIndex)
       end
    elseif gameTime < imgTime then -- reveal the image
       gameTime = imgTime
+      isImagePaused = false
    end
 end
 
@@ -385,4 +468,20 @@ function love.resize(w, h)
    if not isEndGame then
       scaleAndTranslateImage()
    end
+end
+
+function love.quit()
+  --[[if consoleThread:isRunning() then
+    channel:push("exit")
+
+    while consoleThread:isRunning() do
+      --print("Thread running")
+    end
+  end]]
+
+  return false
+end
+
+function love.threaderror(thread, errorstr)
+  print("Thread error!\n"..errorstr)
 end
