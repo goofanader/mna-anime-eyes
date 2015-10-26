@@ -1,7 +1,7 @@
 # Anime Eyes: Console-tastic Version
 Created 9/26/2014 by Phyllis Douglas (goofanader@gmail.com, me@phyllis.li)
 
-Version: 0.6.5 (10/25/2015)
+Version: 0.7.0 (10/25/2015)
 
 Minna no Anime's Anime Eyes program, written in LOVE2D. Get the latest release version from the release folder. It contains executables for Windows x32/x64, Mac OSX, and Linux.
 
@@ -34,26 +34,50 @@ Press ']' when someone gets the image correct. It'll show the image in its true 
 
 If nobody gets the image by the time it's clear, press ']' to go the next image.
 
-## Controls
+## Controls During a Round
+* o - correct
+* x - incorrect
 * r - reload the images in the image folder
 * p - pause/unpause the pixelation. Will unpause if the image is cleared by "]" or "[".
 * f - enter/exit fullscreen for the monitor the program's located on
 * ] - makes the image clear. press again to go to the next image
-* [ - makes the image clear. press again to go to the previous image
+* [ - __disabled for this version.__ makes the image clear. press again to go to the previous image
 * esc or q - quit the game
 
 ## Notes
-* This version is hardcoded to have a beginning pixel size of 70
+* This version is hardcoded to have a beginning pixel size of 100
 * This version is hardcoded to have a time limit of 18 seconds per image
 * This version is hardcoded to have the images randomly appear
 
+## Credits
+* Chime sound: [hypocore on freesound.org](https://www.freesound.org/people/hypocore/sounds/164088/)
+
 ## To-Do
+For 10.26.2015:
+- Change the buttons for "correct" and "incorrect"
+- Allow use of keyboard and other arcade peripherals
+- Prevent players from buzzing in when player score comes up
+- Automatically move to next image
+- Write comprehensive README
+- Give new program to officers
+
+In General To-Do:
 - Create a window for officers to interact with
 - hook-up arcade buttons/buzzers to the program
 - make it so that officers can create different sessions for the program (Anime Eyes vs. Anime Eyes testing vs. Halloween... etc.)
 - fix fullscreen on multi-windows for Windows
+- Time the answer automatically so officers don't have to count to 10.
+- Add the settings module.
+- Make a graphic for the message boxes so they don't look so ugly...
 
 ## Updates
+### 10/25/2015
+- It's a game!!!! The functionality is there!!! Have fun!!!!!
+- Only the trivia buttons will work with the current iteration of the program.
+- Almost all control is diverted to a console. Please open the program via command line for Mac and Linux.
+- There are SFX.
+- A message pops up, letting everyone know who got the buzz in first.
+
 ### 10/24/2015
 - Pausing the game and then hitting one of the "next image" buttons will unpause the game so that the next image will pixelate.
 - The console is used to manage players, start the game, among other things. Currently, only the trivia buttons, not the keyboard, can be used as buzzers.

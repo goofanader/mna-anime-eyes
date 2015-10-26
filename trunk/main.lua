@@ -5,10 +5,14 @@ require 'libraries/roundrect' -- taken from https://love2d.org/forums/viewtopic.
 Player = require 'classes/player'
 
 hasJoystick = false
-DEFAULT_PIX_SIZE = 70
+DEFAULT_PIX_SIZE = 100
 DEFAULT_IMG_TIME = 18
+DEFAULT_TRANSITION_TIME = 1.0
+DEFAULT_ADDITIONAL_GUESS_TIME = 3
+DEFAULT_MESSAGE_TIME = 1.5
 DEFAULT_SCREEN_WIDTH = 800
 DEFAULT_SCREEN_HEIGHT = 600
+DEFAULT_FONT_SIZE = 36
 TRIVIA_BUTTONS_NAME = "REAL ARCADE PRO.3"
 POINTS = 'points'
 NAME = 'name'
@@ -20,7 +24,7 @@ DEFAULT_MIDPOINT_X = DEFAULT_MAX_POINTS / 100.0 * 99.0
 DEFAULT_MIDPOINT_Y = DEFAULT_MAX_POINTS / 4.0 * 3.0
 
 isDebugging = false
-isTesting = true
+isTesting = false
 isRandomFiles = true
 isCheckingImages = false
 triviaButtons = nil
@@ -140,7 +144,8 @@ function love.load()
    rng:setSeed(os.time())
 
    -- set the default font
-   defaultFont = love.graphics.setNewFont(20)
+   playersFont = love.graphics.newFont(DEFAULT_FONT_SIZE + 10)
+   defaultFont = love.graphics.setNewFont(DEFAULT_FONT_SIZE)
 
    -- set the default bezier curve for points
    maxPoints = DEFAULT_MAX_POINTS
@@ -163,11 +168,19 @@ function love.load()
 
    startingPixSize = DEFAULT_PIX_SIZE
    imgTime = DEFAULT_IMG_TIME
+   transitionTime = DEFAULT_TRANSITION_TIME
+   additionalTime = DEFAULT_ADDITIONAL_GUESS_TIME
+   messageTime = DEFAULT_MESSAGE_TIME
 
    wd, ht = DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT
 
    scaling = 1
    transX, transY = 0, 0
+
+   -- load SFX
+   correctSFX = love.sound.newSoundData("media/sfx/correcto.wav")
+   wrongSFX = love.sound.newSoundData("media/sfx/wronnng.wav")
+   buzzedSFX = love.sound.newSoundData("media/sfx/chime (hypocore, 164088).wav")
 
    --set the filter to be linear so when the image clears, the lines are smoothed out
    love.graphics.setDefaultFilter("linear", "linear")
@@ -175,6 +188,7 @@ function love.load()
    gameTime = 0
    isEndGame = true
    isImagePaused = false
+   isGoingToNextImage = false
 
    local joysticks = love.joystick.getJoysticks()
    hasJoystick = #joysticks > 0
@@ -204,10 +218,12 @@ end
 -- Draws the image to the screen.
 function love.draw()
    local isEndOfImage = gameTime >= imgTime
+   local transitionAlpha = 255 * math.min(255, math.max(0.0, gameTime - (imgTime + additionalTime))) / (transitionTime * 1.0)
+   local isShowingPoints = gameTime >= imgTime + (additionalTime + transitionTime)
 
    -- if we haven't finished going through the images, pixelate the image
-   if not isEndGame then
-     love.graphics.setColor(255,255,255)
+   if not isEndGame --[[and not isShowingPoints]] then
+     love.graphics.setColor(255,255,255, math.max(100, 255 - transitionAlpha))
       -- only use the shader if it's pixelating the image.
       if not isEndOfImage then
          love.graphics.setShader( s.shader )
@@ -231,6 +247,20 @@ function love.draw()
       if not isEndOfImage then
          love.graphics.setShader()
       end
+
+   end
+   if not isEndGame and transitionAlpha > 0 then
+     printPlayerScores(math.min(255, transitionAlpha))
+   end
+
+   if not isEndGame and isImagePaused and guesser ~= nil then
+     if guesserTimer == nil then
+       guesserTimer = love.timer.getTime()
+     end
+
+     printPrettyMessage(firstToUpper(guesser.name).."'s Turn!", "center", math.max(0, 255 - (255 * (love.timer.getTime() - guesserTimer) / (messageTime * 1.0))))
+   elseif not isEndGame and not isGamePaused then
+     guesserTimer = nil
    end
 
    -- print the FPS and filename at the top left corner
@@ -239,7 +269,7 @@ function love.draw()
       love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
    end]]
 
-   if isTesting then
+   --[[if isTesting then
      love.graphics.setColor(50, 205, 50, 255)
      local counter = 0
      for index, player in pairs(contestantPointIndex) do
@@ -251,7 +281,7 @@ function love.draw()
        counter = counter + 1
      end
      love.graphics.setColor(255, 255, 255)
-   end
+   end]]
 
    if isTesting then
      printPrettyMessage(tostring(currentPoints).." Points Available", "top right")
@@ -264,12 +294,12 @@ function love.draw()
 
    -- print which button paused the game
    if isImagePaused then
-      if isTesting then
+      --[[if isTesting then
         love.graphics.setColor( 50, 205, 50, 255 )
         love.graphics.print(buttonString)
         love.graphics.print("\nThe guesser is "..tostring(guesser))
         love.graphics.setColor(255,255,255)
-      end
+      end]]
    end
 
    if isWaitingForPlayerButton ~= nil and love.window.hasFocus() then
@@ -279,9 +309,107 @@ function love.draw()
 
 end
 
-function printPrettyMessage(msg, position, font)
+function printPlayerScores(alpha, font)
+  --position = position or "center"
+  font = font or playersFont
+  local prevFont = love.graphics.getFont()
+  love.graphics.setFont(font)
+
+  contestantPointsSorted = {}
+  local largestWidth = 0
+  local longestName = 0
+  local longestPoints = 0
+  local spacing = "   "
+
+  for index, player in pairs(contestantPointIndex) do
+    table.insert(contestantPointsSorted, player)
+    --local currWidth = font:getWidth(player.name..spacing..spacing..tostring(player.points))
+    local nameLength = font:getWidth(player.name..spacing)
+    local pointLength = font:getWidth(spacing..player.points)
+
+    --[[if currWidth > largestWidth then
+      largestWidth = currWidth
+    end]]
+
+    if longestName < nameLength then
+      longestName = nameLength
+    end
+    if longestPoints < pointLength then
+      longestPoints = pointLength
+    end
+  end
+  table.sort(contestantPointsSorted,
+     function(a, b)
+        -- if the points are equal, sort by name
+        if a.points == b.points then
+           return a.name >= b.name --and true or false
+        end
+
+        -- else, give the higher points people precedence
+        return a.points > b.points
+     end
+  )
+
+  largestWidth = longestPoints + longestName
+  local margin = 5
+  local textSpacing = 10
+  local edgeSize = 5
+  local messageX = (wd / 2.0) - (largestWidth / 2.0)
+
+  for index, player in ipairs(contestantPointsSorted) do
+    local name = player.name..spacing
+    local points = spacing..tostring(player.points)
+    local messageY = textSpacing * 2 + ((font:getHeight() + (margin * 2) + (textSpacing * 2)) * (index - 1))
+    local pointsX = messageX + largestWidth - font:getWidth(points)
+
+    --[[if position:find("top") then
+      messageY = margin * 2
+    elseif position:find("bottom") then
+      messageY = ht - font:getHeight() - (margin * 2)
+    end
+
+    if position:find("left") then
+      messageX = margin * 2
+    elseif position:find("right") then
+      messageX = wd - font:getWidth(msg) - (margin * 2)
+    end]]
+
+    if messageY > ht then
+      break
+    end
+
+    -- round rectangle background (TODO: CHANGE TO A GRAPHIC!!!!)
+     -- shadow
+    love.graphics.setColor(0,0,200,alpha / 2.0)
+    love.graphics.roundrect('fill', messageX - margin, messageY - margin + 2, largestWidth + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+    -- background
+    love.graphics.setColor(255,255,255,alpha / 4.0 * 3)
+    love.graphics.roundrect('fill', messageX - margin, messageY - margin, largestWidth + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+    -- outline of box
+    love.graphics.setLineWidth(3)
+    love.graphics.roundrect("line", messageX - margin, messageY - margin, largestWidth + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+    --print the bar between the points and player name
+    love.graphics.line(messageX + largestWidth - longestPoints, messageY - margin, messageX + largestWidth - longestPoints, messageY + font:getHeight() + margin)
+
+    -- text on box
+    love.graphics.setColor(0,0,0,alpha)
+    love.graphics.print(player.name, messageX, messageY)
+    love.graphics.print(points, pointsX, messageY)
+
+    love.graphics.setColor(255, 255, 255)
+
+    love.graphics.setFont(prevFont)
+  end
+end
+
+function printPrettyMessage(msg, position, alpha, font)
   position = position or "center"
+  alpha = alpha or 255
   font = font or defaultFont
+  local prevFont = love.graphics.getFont()
 
   local margin = 5
   local edgeSize = 5
@@ -302,11 +430,11 @@ function printPrettyMessage(msg, position, font)
 
   -- round rectangle background (TODO: CHANGE TO A GRAPHIC!!!!)
    -- shadow
-  love.graphics.setColor(0,0,0,128)
+  love.graphics.setColor(0,0,0,alpha / 2.0)
   love.graphics.roundrect('fill', messageX - margin, messageY - margin + 2, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
 
   -- background
-  love.graphics.setColor(255,255,255,200)
+  love.graphics.setColor(255,255,255,alpha / 4.0 * 3.0)
   love.graphics.roundrect('fill', messageX - margin, messageY - margin, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
 
   -- outline of box
@@ -314,15 +442,17 @@ function printPrettyMessage(msg, position, font)
   love.graphics.roundrect("line", messageX - margin, messageY - margin, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
 
   -- text on box
-  love.graphics.setColor(0,0,0,255)
+  love.graphics.setColor(0,0,0,alpha)
   love.graphics.print(msg, messageX, messageY)
   love.graphics.setColor(255, 255, 255)
+
+  love.graphics.setFont(prevFont)
 end
 
 function handleChannel()
    while channel:getCount() > 0 do
      local action = channel:pop()
-     print("Action: "..action)
+     if isDebugging then print("Action: "..action) end
      if action == "exit" then
        --print("Exiting...")
        love.event.quit()
@@ -403,11 +533,16 @@ function love.update(dt)
 
    if isWantingGameToStart and love.window.hasFocus() then
      isWantingGameToStart = false
-     moveToNextImage(1, #testImgNames + 1)
      gameChannel:supply("started")
+     moveToNextImage(1, #testImgNames + 1)
    end
 
-   if not isEndGame and not isImagePaused then
+   if isGoingToNextImage then
+     moveToNextImage(1, #testImgNames + 1)
+     isGoingToNextImage = false
+   end
+
+   if not isEndGame and (not isImagePaused or gameTime >= imgTime) then
       gameTime = gameTime + dt
    end
 
@@ -430,20 +565,20 @@ function love.update(dt)
          for i = 1, triviaButtons:getButtonCount() do
             -- if there's a joystick button down, note which ones did so
             if triviaButtons:isDown(i) then
-               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil and tablelen(imageGuessers) < tablelen(contestantPointIndex) then
+               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil and tablelen(imageGuessers) < tablelen(contestantPointIndex) and imageGuessers[i] == nil and contestantPointIndex[i] ~= nil then
                   hasButtonDown = true
                end
 
-               -- TODO: remove this code as this creates a new player upon button hit. This should be done via command line for now.
-               if isWaitingForPlayerButton ~= nil and contestantPointIndex[i] == nil then
+               if isWaitingForPlayerButton ~= nil --[[and contestantPointIndex[i] == nil]] then
                   contestantPointIndex[i] = Player:new(isWaitingForPlayerButton, i)
 
                   local playerChannel = love.thread.getChannel("AddPlayer")
                   playerChannel:supply("added || "..isWaitingForPlayerButton.." || "..i)
                   isWaitingForPlayerButton = nil
+                  playSound(buzzedSFX)
                end
 
-               if imageGuessers[i] == nil then
+               if imageGuessers[i] == nil and hasButtonDown and contestantPointIndex[i] ~= nil then
                  table.insert(guessers, contestantPointIndex[i])
                end
             end
@@ -453,6 +588,7 @@ function love.update(dt)
       -- pause the game if any joystick buttons were down
       if hasButtonDown then
          isImagePaused = true
+         playSound(buzzedSFX)
 
          -- make a list of the guessers' indices for debug purposes
          for index, indivGuesser in ipairs(guessers) do
@@ -532,6 +668,8 @@ function love.keypressed(key, isrepeat)
      imageGuessers = contestantPointIndex
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
 
+     playSound(correctSFX)
+
      if gameTime < imgTime then
        moveToNextImage(1, #testImgNames + 1)
      else
@@ -541,8 +679,10 @@ function love.keypressed(key, isrepeat)
      guesser.points = guesser.points - currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 
-     imageGuessers[guesser.index] = guesser
+     imageGuessers[tonumber(guesser.index)] = guesser
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
+
+     playSound(wrongSFX)
 
      if tablelen(imageGuessers) == tablelen(contestantPointIndex) and gameTime < imgTime then
        moveToNextImage(1, #testImgNames + 1)
@@ -578,6 +718,7 @@ function moveToNextImage(increment, endIndex)
    if gameTime >= imgTime or isEndGame then --go to the next image
       currImgIndex = currImgIndex + increment
       imageGuessers = {}
+      guesser = nil
 
       -- if it's not the end of the game
       if currImgIndex <= #testImgNames and currImgIndex > 0 then
@@ -587,7 +728,8 @@ function moveToNextImage(increment, endIndex)
          currImgName = testImgNames[currImgIndex]
 
          -- Print out the image name
-         print(currImgIndex .. ": " .. justFilename(currImgName))
+         --print(currImgIndex .. ": " .. justFilename(currImgName))
+         gameChannel:push("NextImage || "..currImgIndex .. ": " .. justFilename(currImgName))
          testImg[currImgIndex] = love.graphics.newImage(testImgNames[currImgIndex])
 
          s.shader:send('screen', {testImg[currImgIndex]:getWidth(), testImg[currImgIndex]:getHeight()})
@@ -635,4 +777,8 @@ end
 
 function love.threaderror(thread, errorstr)
   print("Thread error!\n"..errorstr)
+end
+
+function playSound(sound)
+  love.audio.newSource(sound):play()
 end

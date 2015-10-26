@@ -39,7 +39,7 @@ function managePlayers(channel)
     local isManaging = true
 
     while isManaging do
-      print("Options:")
+      print("\nOptions:")
       print("\tA[dd]\n\t\tAdd/Change a player")
       print("\tC[hange]\n\t\tEdit a player's points")
       print("\tD[elete]\n\t\tRemove a player from the game")
@@ -149,14 +149,14 @@ function beginGame(channel)
     gameStartChannel:demand()
 
     -- options for when the game is playing should be here.
-    --[[print("Controls for game:")
+    print("\nControls for game:")
     print("\to\n\t\tCorrect")
     print("\tx\n\t\tIncorrect")
     print("\tp\n\t\tToggle Pause")
     print("\t]\n\t\tQuick Skip Forwards")
     print("\t[\n\t\tQuick Skip Backwards")
-    print("\ts\n\t\tStop Game")]]
-    print("\nSwitch to this screen to edit player scores if necessary.")
+    print("\ts\n\t\tStop Game")
+    print("\nSwitch to this screen to edit player scores if necessary.\n")
 
     local isWaitingForMessage = true
 
@@ -175,6 +175,9 @@ function beginGame(channel)
             action = split(action, " || ")
 
             players[action[2]].points = action[3]
+          elseif action:find("NextImage || ") then
+            action = split(action, " || ")
+            print(action[2])
           end
         end
       end
@@ -232,7 +235,7 @@ players = {}
 local consoleIsRunning = true
 
 while consoleIsRunning do
-  print("Options:")
+  print("\nOptions:")
   print("\tPlayers\n\t\tManage players")
   print("\tS[tart]\n\t\tBegin the round")
   print("\tR[eload]\n\t\tReload the image folder")
