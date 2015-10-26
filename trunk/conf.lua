@@ -1,6 +1,6 @@
 function love.conf(t)
    t.identity = "MnA_Anime_Eyes"
-   t.version = "0.9.1"
+   t.version = "0.9.2"
    t.console = true
    t.window.title = "Anime Eyes"
    t.window.width = 800

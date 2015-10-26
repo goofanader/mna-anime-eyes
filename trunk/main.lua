@@ -1,6 +1,7 @@
 s = require 'pixelateShader'
 require 'middleclass'
 require 'libraries/middleclass-commons'
+require 'libraries/roundrect' -- taken from https://love2d.org/forums/viewtopic.php?t=11511
 Player = require 'classes/player'
 
 hasJoystick = false
@@ -13,12 +14,25 @@ POINTS = 'points'
 NAME = 'name'
 INDEX = 'index'
 
+DEFAULT_MAX_POINTS = 100
+DEFAULT_MIN_POINTS = 10
+DEFAULT_MIDPOINT_X = DEFAULT_MAX_POINTS / 100.0 * 99.0
+DEFAULT_MIDPOINT_Y = DEFAULT_MAX_POINTS / 4.0 * 3.0
+
 isDebugging = false
-isTesting = false
+isTesting = true
 isRandomFiles = true
+isCheckingImages = false
 triviaButtons = nil
 contestantPointIndex = {}
 contestantPointsSorted = {}
+imageGuessers = {}
+
+-- Capitalize the first character of a string
+-- Taken from http://stackoverflow.com/questions/2421695/first-character-uppercase-lua
+function firstToUpper(str)
+    return (str:gsub("^%l", string.upper))
+end
 
 ---
 -- Splits a string on the given pattern, returned as a table of the delimited strings.
@@ -125,6 +139,17 @@ function love.load()
    rng = love.math.newRandomGenerator()
    rng:setSeed(os.time())
 
+   -- set the default font
+   defaultFont = love.graphics.setNewFont(20)
+
+   -- set the default bezier curve for points
+   maxPoints = DEFAULT_MAX_POINTS
+   minPoints = DEFAULT_MIN_POINTS
+   midPointX = DEFAULT_MIDPOINT_X
+   midPointY = DEFAULT_MIDPOINT_Y
+
+   pointCurve = love.math.newBezierCurve({minPoints, maxPoints, midPointX, midPointY, maxPoints, minPoints})
+
    -- create the images directory if it doesn't exist yet
    if not love.filesystem.exists(love.filesystem.getSaveDirectory() .. "images") then
       love.filesystem.createDirectory("images")
@@ -182,6 +207,7 @@ function love.draw()
 
    -- if we haven't finished going through the images, pixelate the image
    if not isEndGame then
+     love.graphics.setColor(255,255,255)
       -- only use the shader if it's pixelating the image.
       if not isEndOfImage then
          love.graphics.setShader( s.shader )
@@ -193,9 +219,9 @@ function love.draw()
       love.graphics.scale(scaling, scaling)
 
       -- if it's the end of the image, print just the image, no shader
-      if isEndOfImage then
+      --[[if isEndOfImage then
          love.graphics.setColor(255,255,255)
-      end
+      end]]
       love.graphics.draw(testImg[currImgIndex], 0,0)
 
       -- remove the graphics transformations
@@ -208,9 +234,32 @@ function love.draw()
    end
 
    -- print the FPS and filename at the top left corner
-   if isTesting and not isImagePaused then
+   --[[if isTesting and not isImagePaused then
       love.graphics.setColor( 50, 205, 50, 255 )
       love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
+   end]]
+
+   if isTesting then
+     love.graphics.setColor(50, 205, 50, 255)
+     local counter = 0
+     for index, player in pairs(contestantPointIndex) do
+       local newlines = ""
+       for i = 1, counter do
+         newlines = newlines.."\n"
+       end
+       love.graphics.print(newlines..tostring(player))
+       counter = counter + 1
+     end
+     love.graphics.setColor(255, 255, 255)
+   end
+
+   if isTesting then
+     printPrettyMessage(tostring(currentPoints).." Points Available", "top right")
+
+     -- show point bezier curve
+     --[[love.graphics.setColor( 50, 205, 50, 255 )
+     love.graphics.line(pointCurve:render())
+     love.graphics.setColor(255,255,255)]]
    end
 
    -- print which button paused the game
@@ -224,16 +273,49 @@ function love.draw()
    end
 
    if isWaitingForPlayerButton ~= nil and love.window.hasFocus() then
-     love.graphics.setColor( 50, 205, 50, 255 )
-     love.graphics.print(isWaitingForPlayerButton .. ", press your button.", wd / 2.0, ht / 2.0)
-     love.graphics.setColor(255,255,255)
+     local buttonMessage = firstToUpper(isWaitingForPlayerButton) .. ", press your button."
+     printPrettyMessage(buttonMessage)
    end
 
 end
 
-function printPrettyMessage(msg)
-  love.graphics.setColor()
-  love.graphics.print(msg)
+function printPrettyMessage(msg, position, font)
+  position = position or "center"
+  font = font or defaultFont
+
+  local margin = 5
+  local edgeSize = 5
+  local messageX = (wd / 2.0) - (font:getWidth(msg) / 2.0)
+  local messageY = (ht / 2.0) - (font:getHeight() / 2.0)
+
+  if position:find("top") then
+    messageY = margin * 2
+  elseif position:find("bottom") then
+    messageY = ht - font:getHeight() - (margin * 2)
+  end
+
+  if position:find("left") then
+    messageX = margin * 2
+  elseif position:find("right") then
+    messageX = wd - font:getWidth(msg) - (margin * 2)
+  end
+
+  -- round rectangle background (TODO: CHANGE TO A GRAPHIC!!!!)
+   -- shadow
+  love.graphics.setColor(0,0,0,128)
+  love.graphics.roundrect('fill', messageX - margin, messageY - margin + 2, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+  -- background
+  love.graphics.setColor(255,255,255,200)
+  love.graphics.roundrect('fill', messageX - margin, messageY - margin, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+  -- outline of box
+  love.graphics.setLineWidth(3)
+  love.graphics.roundrect("line", messageX - margin, messageY - margin, font:getWidth(msg) + (margin * 2), font:getHeight() + (margin * 2), edgeSize, edgeSize)
+
+  -- text on box
+  love.graphics.setColor(0,0,0,255)
+  love.graphics.print(msg, messageX, messageY)
   love.graphics.setColor(255, 255, 255)
 end
 
@@ -249,10 +331,31 @@ function handleChannel()
      elseif action == "reload" then
        reloadImages()
      elseif action == "pause" then
-       isImagePaused = not isImagePaused
+       toggleImagePause() -- probably more of a game pause here, actually.
      elseif action:find("add || ") then
        local playerName = split(action, " || ")[2]
        isWaitingForPlayerButton = playerName
+     elseif action:find("edit || ") then
+       local info = split(action, " || ")
+       local buttonNumber = tonumber(info[2])
+       contestantPointIndex[buttonNumber].points = info[3]
+
+       if imageGuessers[buttonNumber] ~= nil then
+         imageGuessers[buttonNumber].points = info[3]
+       end
+
+       if guesser and guesser.index == buttonNumber then
+         guesser.points = info[3]
+       end
+     elseif action:find("remove || ") then
+       local info = split(action, " || ")
+       local buttonNumber = tonumber(info[2])
+       contestantPointIndex[buttonNumber] = nil
+       imageGuessers[buttonNumber] = nil
+
+       if guesser and guesser.index == buttonNumber then
+         guesser = nil
+       end
      elseif action == "start" then
        isWantingGameToStart = true
        currImgIndex = 0
@@ -279,6 +382,21 @@ function reloadImages()
    testImg = {}
  end
 
+ function toggleImagePause()
+   isImagePaused = not isImagePaused
+
+   if not isImagePaused then
+     guesser = nil
+   end
+ end
+
+-- taken from http://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
+ function tablelen(T)
+   local count = 0
+   for _ in pairs(T) do count = count + 1 end
+   return count
+ end
+
 -- Updates the shader with the correct amount of time left for the picture.
 function love.update(dt)
    handleChannel()
@@ -297,6 +415,10 @@ function love.update(dt)
       s.shader:send('time', gameTime)
    end
 
+   -- determine points for this moment in time
+   currentPointsX, currentPoints = pointCurve:evaluate(math.min(1.0, gameTime / (imgTime * 1.0)))
+   currentPoints = math.floor(currentPoints + 0.5)
+
    -- check for joystick buttons
    local hasButtonDown = false
 
@@ -308,7 +430,7 @@ function love.update(dt)
          for i = 1, triviaButtons:getButtonCount() do
             -- if there's a joystick button down, note which ones did so
             if triviaButtons:isDown(i) then
-               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil then
+               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil and tablelen(imageGuessers) < tablelen(contestantPointIndex) then
                   hasButtonDown = true
                end
 
@@ -321,7 +443,9 @@ function love.update(dt)
                   isWaitingForPlayerButton = nil
                end
 
-               table.insert(guessers, contestantPointIndex[i])
+               if imageGuessers[i] == nil then
+                 table.insert(guessers, contestantPointIndex[i])
+               end
             end
          end
       end
@@ -331,8 +455,8 @@ function love.update(dt)
          isImagePaused = true
 
          -- make a list of the guessers' indices for debug purposes
-         for index, guesser in ipairs(guessers) do
-            buttonString = buttonString .. guesser.index .. ","
+         for index, indivGuesser in ipairs(guessers) do
+            buttonString = buttonString .. indivGuesser.index .. ","
          end
 
          -- determine who gets to go first
@@ -378,7 +502,7 @@ function love.keypressed(key, isrepeat)
       setFullscreen()
    end
 
-   if key == '[' then -- move to previous image
+   if key == '[' and isCheckingImages then -- move to previous image
       moveToNextImage(-1, 0)
    elseif key == ']' then -- move to next image
       moveToNextImage(1, #testImgNames + 1)
@@ -398,7 +522,33 @@ function love.keypressed(key, isrepeat)
    end
 
    if key == 'p' then -- pause or unpause the game
-      isImagePaused = not isImagePaused
+      toggleImagePause()
+   end
+
+   if key == 'o' and not isEndGame and guesser ~= nil then -- correct answer
+     guesser.points = guesser.points + currentPoints
+     contestantPointIndex[guesser.index].points = guesser.points
+
+     imageGuessers = contestantPointIndex
+     gameChannel:push("update || "..guesser.index.." || "..guesser.points)
+
+     if gameTime < imgTime then
+       moveToNextImage(1, #testImgNames + 1)
+     else
+       toggleImagePause()
+     end
+   elseif key == 'x' and not isEndGame and guesser ~= nil then -- incorrect answer
+     guesser.points = guesser.points - currentPoints
+     contestantPointIndex[guesser.index].points = guesser.points
+
+     imageGuessers[guesser.index] = guesser
+     gameChannel:push("update || "..guesser.index.." || "..guesser.points)
+
+     if tablelen(imageGuessers) == tablelen(contestantPointIndex) and gameTime < imgTime then
+       moveToNextImage(1, #testImgNames + 1)
+     else
+       toggleImagePause()
+     end
    end
 end
 
@@ -427,6 +577,7 @@ end
 function moveToNextImage(increment, endIndex)
    if gameTime >= imgTime or isEndGame then --go to the next image
       currImgIndex = currImgIndex + increment
+      imageGuessers = {}
 
       -- if it's not the end of the game
       if currImgIndex <= #testImgNames and currImgIndex > 0 then

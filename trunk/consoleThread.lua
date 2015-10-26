@@ -40,8 +40,8 @@ function managePlayers(channel)
 
     while isManaging do
       print("Options:")
-      print("\tA[dd]\n\t\tAdd a player")
-      print("\tC[hange]\n\t\tEdit a player")
+      print("\tA[dd]\n\t\tAdd/Change a player")
+      print("\tC[hange]\n\t\tEdit a player's points")
       print("\tD[elete]\n\t\tRemove a player from the game")
       print("\tL[ist]\n\t\tList all players")
       print("\tT[est]\n\t\tTest player buttons")
@@ -62,7 +62,33 @@ function managePlayers(channel)
 
         print("Player "..playerInfo[2].." is set to button "..playerInfo[3].."!")
       elseif option == "change" or option == "c" then
+        print("Which player?")
+        local playerName = trim(io.read())
+
+        local playerButton = getPlayerButton(playerName)
+        if playerButton ~= nil then
+          print("Enter new point value:")
+          -- ERROR CHECK HERE!!!
+          local newPoints = tonumber(trim(io.read()))
+          players[playerButton].points = newPoints
+          channel:push("edit || "..playerButton.." || "..newPoints)
+
+          print("Player "..playerName.." now has "..newPoints.." points.")
+        else
+          print("Could not find player \""..playerName.."\"... Try again.")
+        end
       elseif option == "delete" or option == "d" then
+        print("Which player?")
+        local playerName = trim(io.read())
+
+        local playerButton = getPlayerButton(playerName)
+        if playerButton ~= nil then
+          channel:push("remove || "..playerButton)
+
+          print("Player "..playerName.." has been removed from the game.")
+        else
+          print("Could not find player \""..playerName.."\"... Try again.")
+        end
       elseif option == "test" or option == "t" then
       elseif option == "list" or option == "l" then
         printPlayers()
@@ -76,6 +102,16 @@ function managePlayers(channel)
   end
 
   return true
+end
+
+function getPlayerButton(playerName)
+  for key, value in pairs(players) do
+    if value.name:lower() == playerName:lower() then
+      return key
+    end
+  end
+
+  return nil
 end
 
 function printPlayerByIndex(button)
@@ -113,13 +149,13 @@ function beginGame(channel)
     gameStartChannel:demand()
 
     -- options for when the game is playing should be here.
-    print("Controls for game:")
+    --[[print("Controls for game:")
     print("\to\n\t\tCorrect")
     print("\tx\n\t\tIncorrect")
     print("\tp\n\t\tToggle Pause")
     print("\t]\n\t\tQuick Skip Forwards")
     print("\t[\n\t\tQuick Skip Backwards")
-    print("\ts\n\t\tStop Game")
+    print("\ts\n\t\tStop Game")]]
     print("\nSwitch to this screen to edit player scores if necessary.")
 
     local isWaitingForMessage = true
