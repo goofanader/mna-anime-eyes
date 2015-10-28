@@ -259,9 +259,22 @@ function love.load()
    consoleThread = love.thread.newThread("consoleThread.lua")
    channel = love.thread.getChannel("Console")
    gameChannel = love.thread.getChannel("GameStart")
-   if triviaButtons ~= nil then consoleThread:start() end
 
-   channel:supply(love.filesystem.getSaveDirectory()..SLASHES..IMAGES_DIRECTORY)
+   if triviaButtons ~= nil then
+     consoleThread:start()
+     channel:supply(getCorrectSlashSaveDirectory()..IMAGES_DIRECTORY)
+   end
+end
+
+function getCorrectSlashSaveDirectory()
+  local correctSlashSaveDirSplit = split(love.filesystem.getSaveDirectory(), "/")
+  local correctSlashSaveDir = ""
+
+  for i = 1, #correctSlashSaveDirSplit do
+    correctSlashSaveDir = correctSlashSaveDir..correctSlashSaveDirSplit[i]..SLASHES
+  end
+
+  return correctSlashSaveDir
 end
 
 -- Draws the image to the screen.
@@ -516,6 +529,7 @@ function handleChannel()
        isCheckingImages = not isCheckingImages
      elseif action == "isRandomFiles" then
        isRandomFiles = not isRandomFiles
+       reloadImages()
      elseif action == "fullscreen" then
        setFullscreen()
      elseif action == "reload" then
@@ -593,7 +607,7 @@ function love.update(dt)
 
    if isWantingGameToStart and love.window.hasFocus() then
      isWantingGameToStart = false
-     gameChannel:supply("started")
+     if triviaButtons ~= nil then gameChannel:supply("started") end
      moveToNextImage(1, #testImgNames + 1)
    end
 
@@ -804,6 +818,7 @@ function moveToNextImage(increment, endIndex)
       else -- we've finished going through the images
          if not isEndGame then
            saveScores()
+           --if triviaButtons ~= nil then saveScores() end
            gameChannel:push("GameOver")
          end
 
@@ -832,7 +847,10 @@ function saveScores()
      end
   )]]
   -- save the scores of the players
-  local filename = SCORES_DIRECTORY..SLASHES..os.date("%m-%d-%Y_%H-%M-%S", os.time()) .. ".json"
+  local filename = SCORES_DIRECTORY.."/"..os.date("%m-%d-%Y_%H-%M-%S", os.time()) .. ".ini"
+  local correctSlashFilename = split(filename, "/")
+  correctSlashFilename = correctSlashFilename[1]..SLASHES..correctSlashFilename[2]
+
   local saveData = love.filesystem.newFile(filename)
   local passed, errMsg = saveData:open("w")
 
@@ -855,7 +873,7 @@ function saveScores()
 
     saveData:close()
 
-    print("Player scores saved. You can view the scores at "..love.filesystem.getSaveDirectory()..SLASHES..filename..".")
+    print("Player scores saved. You can view the scores at "..getCorrectSlashSaveDirectory()..correctSlashFilename..".")
   else
     print("Could not create save data of players' scores. Error message: "..errMsg)
     print("Here are the scores outputted to console instead:")
