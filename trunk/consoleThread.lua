@@ -39,17 +39,17 @@ function managePlayers(channel)
     local isManaging = true
 
     while isManaging do
-      print("\nOptions:")
-      print("\tA[dd]\n\t\tAdd/Change a player")
-      print("\tC[hange]\n\t\tEdit a player's points")
-      print("\tD[elete]\n\t\tRemove a player from the game")
-      print("\tL[ist]\n\t\tList all players")
-      print("\tT[est]\n\t\tTest player buttons")
-      print("\tR[eturn]\n\t\tGo back to previous menu")
+      print("\nOptions (Choose one by entering the number, first letter, or full command):")
+      print("\t1. A[dd]: Add a player/Change a player's name")
+      print("\t2. C[hange]: Edit a player's points")
+      print("\t3. D[elete]: Remove a player from the game")
+      print("\t4. L[ist]: List all players")
+      --print("\t5. T[est]: Test player buttons")
+      print("\t5. R[eturn]: Go back to previous menu")
 
       local option = trim(io.read()):lower()
 
-      if option == "add" or option == "a" then
+      if option == "add" or option == "a" or option == "1" then
         print("Player Name?")
         local playerName = trim(io.read())
         channel:push("add || "..playerName)
@@ -61,7 +61,7 @@ function managePlayers(channel)
         players[playerInfo[3]] = {["name"] = playerInfo[2], ["index"] = playerInfo[3], ["points"] = 0}
 
         print("Player "..playerInfo[2].." is set to button "..playerInfo[3].."!")
-      elseif option == "change" or option == "c" then
+      elseif option == "change" or option == "c" or option == "2" then
         print("Which player?")
         local playerName = trim(io.read())
 
@@ -77,7 +77,7 @@ function managePlayers(channel)
         else
           print("Could not find player \""..playerName.."\"... Try again.")
         end
-      elseif option == "delete" or option == "d" then
+      elseif option == "delete" or option == "d" or option == "3" then
         print("Which player?")
         local playerName = trim(io.read())
 
@@ -89,10 +89,10 @@ function managePlayers(channel)
         else
           print("Could not find player \""..playerName.."\"... Try again.")
         end
-      elseif option == "test" or option == "t" then
-      elseif option == "list" or option == "l" then
+      --elseif option == "test" or option == "t" then
+      elseif option == "list" or option == "l" or option == "4" then
         printPlayers()
-      elseif option == "return" or option == "r" then
+      elseif option == "return" or option == "r" or option == "5" then
         print("Returning to previous menu...")
         isManaging = false
       else
@@ -150,13 +150,14 @@ function beginGame(channel)
 
     -- options for when the game is playing should be here.
     print("\nControls for game:")
-    print("\to\n\t\tCorrect")
-    print("\tx\n\t\tIncorrect")
-    print("\tp\n\t\tToggle Pause")
-    print("\t]\n\t\tQuick Skip Forwards")
-    print("\t[\n\t\tQuick Skip Backwards")
-    print("\ts\n\t\tStop Game")
-    print("\nSwitch to this screen to edit player scores if necessary.\n")
+    print("\tc: Correct")
+    print("\tn: Not Correct")
+    print("\tp: Toggle Pause")
+    print("\t]: Quick Skip Forwards")
+    print("\tf: Fullscreen (please pause the game before doing so)")
+    --print("\t[: Quick Skip Backwards")
+    --print("\ts\n\t\tStop Game")
+    --print("\nSwitch to this screen to edit player scores if necessary.\n")
 
     local isWaitingForMessage = true
 
@@ -173,11 +174,22 @@ function beginGame(channel)
           elseif action:find("update || ") then
             -- "update || <button number> || <new point value>"
             action = split(action, " || ")
+            local player = players[action[2]]
+            local newPoints = tonumber(action[3])
 
-            players[action[2]].points = action[3]
+            if (newPoints < player.points) then
+              print("\t"..player.name.." lost "..tostring(player.points - newPoints).." point(s)...")
+            else
+              print("\t"..player.name.." won "..tostring(newPoints - player.points).." point(s)!")
+            end
+            print()
+            players[action[2]].points = tonumber(action[3])
           elseif action:find("NextImage || ") then
             action = split(action, " || ")
             print(action[2])
+          elseif action:find("buzzedPlayer || ") then
+            action = split(action, " || ")
+            print("\t"..action[2].."'s Turn!")
           end
         end
       end
@@ -214,6 +226,55 @@ function pauseGame(channel)
   return true
 end
 
+function manageSettings(channel)
+  if channel ~= nil then
+    while true do
+      print("\nSetting Options (Type in the number of the command you want):")
+      print("\t1. Change pixel size")
+      print("\t2. Change length of time for an image to be onscreen")
+      --print("\t3. Toggle Image Checking Mode")
+      print("\t3. Toggle Randomly Ordered Images")
+      --print("\t5. Manage Point Distribution")
+      --print("\t5. Show current settings")
+      print("\t4. Return to previous menu")
+
+      local option = trim(io.read()):lower()
+
+      if option == "1" then
+        print("Enter new pixel size:")
+        local size = tonumber(trim(io.read()):lower())
+
+        if size == nil then
+          print("Not a valid entry. Try again.")
+        else
+          print("Pixel size is now "..size..".")
+          channel:push("pixelSize || "..size)
+        end
+      elseif option == "2" then
+        print("Enter new amount of time:")
+        local time = tonumber(trim(io.read()):lower())
+
+        if time == nil then
+          print("Not a valid entry. Try again.")
+        else
+          print("Game time is now "..time..".")
+          channel:push("gameTime || "..time)
+        end
+      --[[elseif option == "3" then
+        print("Toggling image checking mode...")
+        channel:push("isCheckingImages")]]
+      elseif option == "3" then
+        print("Toggling random order of images...")
+        channel:push("isRandomFiles")
+      elseif option == "4" then
+        break
+      end
+    end
+  end
+
+  return true
+end
+
 function exitProgram(channel)
   if channel ~= nil then
     print("Goodbye!")
@@ -224,7 +285,7 @@ function exitProgram(channel)
 end
 
 -- do a do-while loop, waiting for the user's input
-print("Welcome to MnA Anime Eyes, the ghetto version!")
+print("\nWelcome to MnA Anime Eyes, the ghetto version!")
 print("(Phyllis made this, she promises you'll have a more graphical backend in the future)")
 print()
 
@@ -234,29 +295,36 @@ gameStartChannel = love.thread.getChannel("GameStart")
 players = {}
 local consoleIsRunning = true
 
+local saveDirectory = channel:demand()
+
+print("The directory for placing images is "..saveDirectory)
+
 while consoleIsRunning do
-  print("\nOptions:")
-  print("\tPlayers\n\t\tManage players")
-  print("\tS[tart]\n\t\tBegin the round")
-  print("\tR[eload]\n\t\tReload the image folder")
-  print("\tF[ullscreen]\n\t\tToggle fullscreen")
-  print("\tP[ause]\n\t\tToggle pause")
-  print("\tQ[uit]\n\t\tExit the program")
+  print("\nOptions (Choose one by entering the number, first letter, or full command):")
+  print("\t1. Players: Manage players")
+  print("\t2. S[tart]: Begin the round")
+  print("\t3. R[eload]: Reload the image folder")
+  print("\t4. F[ullscreen]: Toggle fullscreen")
+  --print("\tP[ause]\n\t\tToggle pause")
+  print("\t5. Settings: Configure game settings")
+  print("\t6. Q[uit]: Exit the program")
 
   local option = trim(io.read()):lower()
   --print(option.." : did it newline tho")
 
-  if option == "players" then
+  if option == "players" or option == "1" then
     consoleIsRunning = managePlayers(channel)
-  elseif option == "p" or option == "pause" then
-    consoleIsRunning = pauseGame(channel)
-  elseif option == "start" or option == "s" then
+  --elseif option == "p" or option == "pause" then
+    --consoleIsRunning = pauseGame(channel)
+  elseif option == "start" or option == "s" or option == "2" then
     consoleIsRunning = beginGame(channel)
-  elseif option == "reload" or option == "r" then
+  elseif option == "reload" or option == "r" or option == "3" then
     consoleIsRunning = reloadImages(channel)
-  elseif option == "fullscreen" or option == "f" then
+  elseif option == "fullscreen" or option == "f" or option == "4" then
     consoleIsRunning = setFullscreen(channel)
-  elseif option == "quit" or option == "q" then
+  elseif option == "settings" or option == "5" then
+    consoleIsRunning = manageSettings(channel)
+  elseif option == "quit" or option == "q" or option == "6" then
     consoleIsRunning = exitProgram(channel)
   else
     print("Bad option, try again.")

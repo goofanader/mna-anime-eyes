@@ -35,8 +35,8 @@ Press ']' when someone gets the image correct. It'll show the image in its true 
 If nobody gets the image by the time it's clear, press ']' to go the next image.
 
 ## Controls During a Round
-* o - correct
-* x - incorrect
+* c - correct
+* n - not correct
 * r - reload the images in the image folder
 * p - pause/unpause the pixelation. Will unpause if the image is cleared by "]" or "[".
 * f - enter/exit fullscreen for the monitor the program's located on

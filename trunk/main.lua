@@ -17,6 +17,9 @@ TRIVIA_BUTTONS_NAME = "REAL ARCADE PRO.3"
 POINTS = 'points'
 NAME = 'name'
 INDEX = 'index'
+IMAGES_DIRECTORY = "images"
+SCORES_DIRECTORY = "scores"
+SLASHES = package.config:sub(1,1)
 
 DEFAULT_MAX_POINTS = 100
 DEFAULT_MIN_POINTS = 10
@@ -31,6 +34,11 @@ triviaButtons = nil
 contestantPointIndex = {}
 contestantPointsSorted = {}
 imageGuessers = {}
+
+-- trim a string.
+function trim(s)
+  return s:match'^%s*(.*%S)' or ''
+end
 
 -- Capitalize the first character of a string
 -- Taken from http://stackoverflow.com/questions/2421695/first-character-uppercase-lua
@@ -156,11 +164,14 @@ function love.load()
    pointCurve = love.math.newBezierCurve({minPoints, maxPoints, midPointX, midPointY, maxPoints, minPoints})
 
    -- create the images directory if it doesn't exist yet
-   if not love.filesystem.exists(love.filesystem.getSaveDirectory() .. "images") then
-      love.filesystem.createDirectory("images")
+   if not love.filesystem.exists(love.filesystem.getSaveDirectory() .. "/" .. IMAGES_DIRECTORY) then
+      love.filesystem.createDirectory(IMAGES_DIRECTORY)
+   end
+   if not love.filesystem.exists(love.filesystem.getSaveDirectory() .. "/" .. SCORES_DIRECTORY) then
+      love.filesystem.createDirectory(SCORES_DIRECTORY)
    end
 
-   local directory = "images"
+   local directory = IMAGES_DIRECTORY
    testImgNames = loadImageFolder(directory)
    testImg = {}
    currImgIndex = 0
@@ -193,15 +204,53 @@ function love.load()
    local joysticks = love.joystick.getJoysticks()
    hasJoystick = #joysticks > 0
 
-   print("checking out joysticks")
-   triviaButtons = nil
-   for i = 1, #joysticks do
-      if joysticks[i]:getName() == TRIVIA_BUTTONS_NAME then
-         triviaButtons = joysticks[i]
-         print(joysticks[i]:getName() .. ": # buttons = " .. joysticks[i]:getButtonCount())
-      end
+   if #joysticks > 0 then
+     print("Choose your control scheme:")
+     --print("checking out joysticks")
+     triviaButtons = nil
+     for i = 1, #joysticks do
+       print(i..". "..joysticks[i]:getName() .. ": # of buttons = " .. joysticks[i]:getButtonCount())
+     end
+     print("k. No Joystick (Checking Images Mode)")
+
+     local isChoosing = true
+     while isChoosing do
+       print("(Enter the number (or 'k') of your choice. Note that the usual trivia buttons are '"..TRIVIA_BUTTONS_NAME.."')")
+       local choice = trim(io.read()):lower()
+       local choiceAsNumber = tonumber(choice)
+
+       if choiceAsNumber ~= nil and not choice:find("%.") then
+         if choiceAsNumber > 0 and choiceAsNumber <= #joysticks then
+           isChoosing = false
+           triviaButtons = joysticks[choiceAsNumber]
+           break
+         end
+       elseif choice == 'k' then
+         break
+       end
+
+       print("Bad choice, try again.")
+     end
    end
-   print("done with them joysticks")
+
+   if triviaButtons ~= nil then
+     print("Your joystick choice: "..triviaButtons:getName())
+   else
+     print("No joysticks. Running in image-checking mode.")
+     isCheckingImages = true
+
+     -- print out the controls on the console.
+     print([[
+
+## Controls ##
+     r - reload the images in the image folder
+     p - pause/unpause the pixelation. Will unpause if the image is cleared by "]" or "[".
+     f - enter/exit fullscreen for the monitor the program's located on
+     ] - makes the image clear. press again to go to the next image
+     [ - makes the image clear. press again to go to the previous image
+     esc or q - quit the game
+]])
+   end
 
    -- The only thing that needs to be sent to the shader is the game time. If this value is changed in-game, I'll update it then, but this is the one constant. All the other variables change with each new image.
    s.shader:send('imgTime', imgTime)
@@ -210,15 +259,16 @@ function love.load()
    consoleThread = love.thread.newThread("consoleThread.lua")
    channel = love.thread.getChannel("Console")
    gameChannel = love.thread.getChannel("GameStart")
-   consoleThread:start()
+   if triviaButtons ~= nil then consoleThread:start() end
 
-   --channel:supply(love.filesystem.getWorkingDirectory())
+   channel:supply(love.filesystem.getSaveDirectory()..SLASHES..IMAGES_DIRECTORY)
 end
 
 -- Draws the image to the screen.
 function love.draw()
    local isEndOfImage = gameTime >= imgTime
-   local transitionAlpha = 255 * math.min(255, math.max(0.0, gameTime - (imgTime + additionalTime))) / (transitionTime * 1.0)
+   transitionAlpha = 255 * math.min(255, math.max(0.0, gameTime - (imgTime + additionalTime))) / (transitionTime * 1.0)
+   if triviaButtons == nil then transitionAlpha = 0 end
    local isShowingPoints = gameTime >= imgTime + (additionalTime + transitionTime)
 
    -- if we haven't finished going through the images, pixelate the image
@@ -249,7 +299,7 @@ function love.draw()
       end
 
    end
-   if not isEndGame and transitionAlpha > 0 then
+   if not isCheckingImages and not isEndGame and transitionAlpha > 0 then
      printPlayerScores(math.min(255, transitionAlpha))
    end
 
@@ -342,7 +392,7 @@ function printPlayerScores(alpha, font)
      function(a, b)
         -- if the points are equal, sort by name
         if a.points == b.points then
-           return a.name >= b.name --and true or false
+           return a.name <= b.name --and true or false
         end
 
         -- else, give the higher points people precedence
@@ -356,7 +406,9 @@ function printPlayerScores(alpha, font)
   local edgeSize = 5
   local messageX = (wd / 2.0) - (largestWidth / 2.0)
 
-  for index, player in ipairs(contestantPointsSorted) do
+  for index = 1, tablelen(contestantPointsSorted) do
+    local player = contestantPointsSorted[index]
+
     local name = player.name..spacing
     local points = spacing..tostring(player.points)
     local messageY = textSpacing * 2 + ((font:getHeight() + (margin * 2) + (textSpacing * 2)) * (index - 1))
@@ -400,9 +452,9 @@ function printPlayerScores(alpha, font)
     love.graphics.print(points, pointsX, messageY)
 
     love.graphics.setColor(255, 255, 255)
-
-    love.graphics.setFont(prevFont)
   end
+
+  love.graphics.setFont(prevFont)
 end
 
 function printPrettyMessage(msg, position, alpha, font)
@@ -456,6 +508,14 @@ function handleChannel()
      if action == "exit" then
        --print("Exiting...")
        love.event.quit()
+     elseif action:find("pixelSize || ") then
+       startingPixSize = tonumber(split(action, " || ")[2])
+     elseif action:find("gameTime || ") then
+       imgTime = tonumber(split(action, " || ")[2])
+     elseif action == "isCheckingImages" then
+       isCheckingImages = not isCheckingImages
+     elseif action == "isRandomFiles" then
+       isRandomFiles = not isRandomFiles
      elseif action == "fullscreen" then
        setFullscreen()
      elseif action == "reload" then
@@ -542,7 +602,7 @@ function love.update(dt)
      isGoingToNextImage = false
    end
 
-   if not isEndGame and (not isImagePaused or gameTime >= imgTime) then
+   if not isEndGame and --[[(not isImagePaused or gameTime >= imgTime)]]not isImagePaused then
       gameTime = gameTime + dt
    end
 
@@ -565,7 +625,7 @@ function love.update(dt)
          for i = 1, triviaButtons:getButtonCount() do
             -- if there's a joystick button down, note which ones did so
             if triviaButtons:isDown(i) then
-               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil and tablelen(imageGuessers) < tablelen(contestantPointIndex) and imageGuessers[i] == nil and contestantPointIndex[i] ~= nil then
+               if not isEndGame and not hasButtonDown and isWaitingForPlayerButton == nil and tablelen(imageGuessers) < tablelen(contestantPointIndex) and imageGuessers[i] == nil and contestantPointIndex[i] ~= nil and transitionAlpha <= 0 then
                   hasButtonDown = true
                end
 
@@ -613,6 +673,7 @@ function love.update(dt)
 
          -- set guesser to the first person in the guessers list
          guesser = guessers[1]
+         gameChannel:push("buzzedPlayer || "..guesser.name)
       end
    end
 end
@@ -644,7 +705,7 @@ function love.keypressed(key, isrepeat)
       moveToNextImage(1, #testImgNames + 1)
    end
 
-   if key == 'r' then -- reload images folder, and eventually config.ini
+   if key == 'r' and triviaButtons == nil then -- reload images folder, and eventually config.ini
       --[[isEndGame = true
       currImgName = ""
       currImgIndex = 0
@@ -655,13 +716,14 @@ function love.keypressed(key, isrepeat)
       testImgNames = loadImageFolder(directory)
       testImg = {}]]
       reloadImages()
+      print("Images reloaded.")
    end
 
    if key == 'p' then -- pause or unpause the game
       toggleImagePause()
    end
 
-   if key == 'o' and not isEndGame and guesser ~= nil then -- correct answer
+   if key == 'c' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- correct answer
      guesser.points = guesser.points + currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 
@@ -675,7 +737,7 @@ function love.keypressed(key, isrepeat)
      else
        toggleImagePause()
      end
-   elseif key == 'x' and not isEndGame and guesser ~= nil then -- incorrect answer
+   elseif key == 'n' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- incorrect answer
      guesser.points = guesser.points - currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 
@@ -728,8 +790,11 @@ function moveToNextImage(increment, endIndex)
          currImgName = testImgNames[currImgIndex]
 
          -- Print out the image name
-         --print(currImgIndex .. ": " .. justFilename(currImgName))
-         gameChannel:push("NextImage || "..currImgIndex .. ": " .. justFilename(currImgName))
+         if triviaButtons ~= nil then
+           gameChannel:push("NextImage || "..currImgIndex .. ": " .. justFilename(currImgName))
+         else
+           print(currImgIndex .. ": " .. justFilename(currImgName))
+         end
          testImg[currImgIndex] = love.graphics.newImage(testImgNames[currImgIndex])
 
          s.shader:send('screen', {testImg[currImgIndex]:getWidth(), testImg[currImgIndex]:getHeight()})
@@ -738,6 +803,7 @@ function moveToNextImage(increment, endIndex)
          gameTime = 0
       else -- we've finished going through the images
          if not isEndGame then
+           saveScores()
            gameChannel:push("GameOver")
          end
 
@@ -751,6 +817,53 @@ function moveToNextImage(increment, endIndex)
       gameTime = imgTime
       isImagePaused = false
    end
+end
+
+function saveScores()
+  --[[table.sort(contestantPointsSorted,
+     function(a, b)
+        -- if the points are equal, sort by name
+        if a.points == b.points then
+           return a.name <= b.name --and true or false
+        end
+
+        -- else, give the higher points people precedence
+        return a.points > b.points
+     end
+  )]]
+  -- save the scores of the players
+  local filename = SCORES_DIRECTORY..SLASHES..os.date("%m-%d-%Y_%H-%M-%S", os.time()) .. ".json"
+  local saveData = love.filesystem.newFile(filename)
+  local passed, errMsg = saveData:open("w")
+
+  if passed then
+    -- write the scores
+    saveData:write("[PlayerScores]\r\n")
+    for i = 1, #contestantPointsSorted do
+      local player = contestantPointsSorted[i]
+      saveData:write("\""..player.name.."\"="..player.points.."\r\n")
+    end
+
+    saveData:write("[Images]\r\n")
+    for i = 1, #testImgNames do
+      saveData:write("\"Image"..i.."\"=\""..split(testImgNames[i], "/")[2].."\"\r\n")
+    end
+
+    saveData:write("[Settings]\r\n")
+    saveData:write("\"startingPixSize\"="..startingPixSize.."\r\n")
+    saveData:write("\"imgTime\"="..imgTime.."\r\n")
+
+    saveData:close()
+
+    print("Player scores saved. You can view the scores at "..love.filesystem.getSaveDirectory()..SLASHES..filename..".")
+  else
+    print("Could not create save data of players' scores. Error message: "..errMsg)
+    print("Here are the scores outputted to console instead:")
+
+    for i = 1, #contestantPointsSorted do
+      print(player)
+    end
+  end
 end
 
 -- Function called when the window is resized.
