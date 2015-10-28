@@ -1,7 +1,7 @@
 # Anime Eyes: Console-tastic Version
 Created 9/26/2014 by Phyllis Douglas (goofanader@gmail.com, me@phyllis.li)
 
-Version: 0.8.0 (10/25/2015)
+Version: 0.8.0 (10/28/2015)
 
 Minna no Anime's Anime Eyes program, written in LOVE2D. Get the latest release version from the release folder. It contains executables for Windows x32/x64, Mac OSX, and Linux.
 
