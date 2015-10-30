@@ -35,7 +35,7 @@ function managePlayers(channel, isDuringGame)
   if channel ~= nil then
     print("Managing Players...")
     channel:push("players")
-    isDuringGame = isDuringGame or false
+    isDuringGame = false --isDuringGame or false
 
     local isManaging = true
 
@@ -51,34 +51,44 @@ function managePlayers(channel, isDuringGame)
       local option = trim(io.read()):lower()
 
       if option == "add" or option == "a" or option == "1" then
-        print("Please note that adding a new player sets that buzzer to zero points.\nPlayer Name?")
+        if not isDuringGame then print("Please note that adding a new player sets that buzzer to zero points.") end
+        print("Player Name?")
         local playerName = trim(io.read())
-        channel:push("add || "..playerName)
-        print("Switch over to the video program and have the player press their button.")
 
-        local playerInfo = playerChannel:demand()
-        playerInfo = split(playerInfo, " || ")
+        if playerName ~= "" then
+          channel:push("add || "..playerName)
+          print("Switch over to the video program and have the player press their button.")
 
-        players[playerInfo[3]] = {["name"] = playerInfo[2], ["index"] = playerInfo[3], ["points"] = 0}
+          local playerInfo = playerChannel:demand()
+          playerInfo = split(playerInfo, " || ")
 
-        print("Player "..playerInfo[2].." is set to button "..playerInfo[3].."!")
+          players[playerInfo[3]] = {["name"] = playerInfo[2], ["index"] = playerInfo[3], ["points"] = 0}
+
+          print("Player "..playerInfo[2].." is set to button "..playerInfo[3].."!")
+        else
+          print("Cannot have a player with no name. Try again.")
+        end
       elseif option == "change" or option == "c" or option == "2" then
         print("Which player?")
         local playerName = trim(io.read())
 
-        local playerButton = getPlayerButton(playerName)
-        if playerButton ~= nil then
-          print("Their current point value:"..players[playerButton].points..". Enter new point value:")
-          -- ERROR CHECK HERE!!!
-          local newPoints = tonumber(trim(io.read()))
-          
-          if newPoints ~= nil then
-             players[playerButton].points = newPoints
-             channel:push("edit || "..playerButton.." || "..newPoints)
+        if playerName ~= "" then
+          local playerButton = getPlayerButton(playerName)
+          if playerButton ~= nil then
+            print("Their current point value:"..players[playerButton].points..". Enter new point value:")
+            -- ERROR CHECK HERE!!!
+            local newPoints = tonumber(trim(io.read()))
 
-             print("Player "..playerName.." now has "..newPoints.." points.")
+            if newPoints ~= nil then
+               players[playerButton].points = newPoints
+               channel:push("edit || "..playerButton.." || "..newPoints)
+
+               print("Player "..playerName.." now has "..newPoints.." points.")
+            else
+               print("Invalid point value! Try again.")
+            end
           else
-             print("Invalid point value! Try again.")
+            print("Player name cannot be empty. Try again.")
           end
         else
           print("Could not find player \""..playerName.."\"... Try again.")
@@ -87,11 +97,15 @@ function managePlayers(channel, isDuringGame)
         print("Which player?")
         local playerName = trim(io.read())
 
-        local playerButton = getPlayerButton(playerName)
-        if playerButton ~= nil then
-          channel:push("remove || "..playerButton)
+        if playerName ~= "" then
+          local playerButton = getPlayerButton(playerName)
+          if playerButton ~= nil then
+            channel:push("remove || "..playerButton)
 
-          print("Player "..playerName.." has been removed from the game.")
+            print("Player "..playerName.." has been removed from the game.")
+          else
+            print("Empty string, try again.")
+          end
         else
           print("Could not find player \""..playerName.."\"... Try again.")
         end
@@ -161,7 +175,7 @@ function printBeginGameMessage()
    --print("\ts\n\t\tStop Game")
    print("\nSwitch to this screen to edit player scores if necessary.\n")
  end
- 
+
 function beginGame(channel)
   if channel ~= nil then
     print("To begin the game, please switch to the game board window.")
@@ -321,7 +335,7 @@ while consoleIsRunning do
   --print("\tP[ause]\n\t\tToggle pause")
   print("\t4. Settings: Configure game settings")
   print("\t5. Q[uit]: Exit the program")
-  
+
   print("\nHow to toggle fullscreen: Switch to the Game Window and press 'f'.\n")
 
   local option = trim(io.read()):lower()

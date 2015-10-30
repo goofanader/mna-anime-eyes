@@ -286,6 +286,10 @@ function love.draw()
    if triviaButtons == nil then transitionAlpha = 0 end
    local isShowingPoints = gameTime >= imgTime + (additionalTime + transitionTime)
 
+   if isEndGame then
+      printPlayerScores()
+   end
+
    if love.window.hasFocus() then
       -- if we haven't finished going through the images, pixelate the image
       if not isEndGame --[[and not isShowingPoints]] then
@@ -325,7 +329,7 @@ function love.draw()
         end
 
         printPrettyMessage(firstToUpper(guesser.name).."'s Turn!", "center", math.max(0, 255 - (255 * (love.timer.getTime() - guesserTimer) / (messageTime * 1.0))))
-        
+
       elseif not isEndGame then
         guesserTimer = nil
         isShowingPlayerMessage = false
@@ -375,15 +379,11 @@ function love.draw()
         printPrettyMessage(buttonMessage)
       end
    else
-      if not isEndGame then 
+      if not isEndGame then
          printPlayerScores()
          printPrettyMessage("Game Paused.")
       end
-      
-   end
-   
-   if isEndGame then
-      printPlayerScores()
+
    end
 end
 
@@ -421,7 +421,7 @@ function printPlayerScores(alpha, font)
      function(a, b)
         -- if the points are equal, sort by name
         if a.points == b.points then
-           return a.name <= b.name --and true or false
+           return a.name:lower() <= b.name:lower() --and true or false
         end
 
         -- else, give the higher points people precedence
@@ -620,7 +620,7 @@ function reloadImages()
 -- Updates the shader with the correct amount of time left for the picture.
 function love.update(dt)
    handleChannel()
-   
+
    if not love.window.hasFocus() and not isEndGame and not hasToldConsoleOfSwitch then
       gameChannel:push("LostFocus")
       hasToldConsoleOfSwitch = true
@@ -761,7 +761,7 @@ function love.keypressed(key, isrepeat)
       toggleImagePause()
    end
 
-   if key == 'y' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- correct answer
+   if key == 'y' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 and tablelen(imageGuessers) ~= tablelen(contestantPointIndex) then -- correct answer
      guesser.points = guesser.points + currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 
@@ -769,7 +769,7 @@ function love.keypressed(key, isrepeat)
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
 
      playSound(correctSFX)
-     
+
      isShowingPlayerMessage = false
      guesserTimer = nil
 
@@ -778,7 +778,7 @@ function love.keypressed(key, isrepeat)
      else
        toggleImagePause()
      end
-   elseif key == 'n' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- incorrect answer
+   elseif key == 'n' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 and tablelen(imageGuessers) ~= tablelen(contestantPointIndex) then -- incorrect answer
      guesser.points = guesser.points - currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 
@@ -786,7 +786,7 @@ function love.keypressed(key, isrepeat)
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
 
      playSound(wrongSFX)
-     
+
      isShowingPlayerMessage = false
      guesserTimer = nil
 
@@ -834,10 +834,15 @@ function moveToNextImage(increment, endIndex)
          currImgName = testImgNames[currImgIndex]
 
          -- Print out the image name
-         if triviaButtons ~= nil then
-           gameChannel:push("NextImage || "..currImgIndex .. ": " .. justFilename(currImgName))
+         local imgString = currImgIndex .. ": " .. justFilename(currImgName)
+         if currImgIndex == #testImgNames then
+           imgString = imgString .. " (last image!!!)"
+         end
+
+         if triviaButtons ~= nil and consoleThread:isRunning() then
+             gameChannel:push("NextImage || "..imgString)
          else
-           print(currImgIndex .. ": " .. justFilename(currImgName))
+           print(imgString)
          end
          testImg[currImgIndex] = love.graphics.newImage(testImgNames[currImgIndex])
 
@@ -900,6 +905,7 @@ function saveScores()
     saveData:write("[Settings]\r\n")
     saveData:write("\"startingPixSize\"="..startingPixSize.."\r\n")
     saveData:write("\"imgTime\"="..imgTime.."\r\n")
+    saveData:write("\"triviaButtons\"="..triviaButtons:getName().."\r\n")
 
     saveData:close()
 
