@@ -1,7 +1,7 @@
 # Anime Eyes: Console-tastic Version
 Created 9/26/2014 by Phyllis Douglas (goofanader@gmail.com, me@phyllis.li)
 
-Version: 0.8.0 (10/28/2015)
+Version: 0.8.1 (10/30/2015)
 
 Minna no Anime's Anime Eyes program, written in LOVE2D. Get the latest release version from the release folder. It contains executables for Windows x32/x64, Mac OSX, and Linux.
 
@@ -51,7 +51,7 @@ __Graphics:__ DirectX 9.0c+ capable graphics card with drivers that support Open
 
 3. Press 'r' (and 'enter' if not in "image checking" mode) to load the images into the program if you added/changed images in the MnA_Anime_Eyes/images folder. It doesn't hurt to press it anyway :)
 
-4. You'll probably want to go into fullscreen: press 'f' (and 'enter' if not in "image checking" mode) to do so.
+4. You'll probably want to go into fullscreen: press 'f' while in the Game Window to do so.
 
 ### Joysticks Plugged In
 Control for setting up the game is almost entirely done in the console. Please have the focus on this window during setup, unless prompted to switch to the Game Window.
@@ -103,31 +103,30 @@ The game will prompt you to use the Game Window as the currently-focused program
 
     I haven't implemented a timer during these sections, so whenever the officer feels like it's enough time, press the "n" button to detract points from the player.
 
-    Press "o" if they're correct, "n" if they're wrong.
+    Press "y" if they're correct, "n" if they're wrong.
 
 3. If the player was wrong, play will continue until someone gets it correct or the image comes into full view.
 
 4. If the image slowly came into focus and shows the full image, players have 3 seconds to answer before the points screen shows up. __This is different from ShippoSearch's implementation, which paused after the image is fully shown.__
 
-5. Announce the correct answer if no one got it while the screen is on the points screen.
+5. Announce the correct answer if no one got it while the Game Window is on the points screen.
 
 6. Hit the "]" button to go to the next image, and repeat steps 1-6 again until all images in a round are finished.
 
 7. Control will go back to the console.
 
-    The players' scores and the list of images used will be saved in the MnA_Anime_Eyes directory's "scores" folder. The filenames are of the time when the round finished.
+##### Saved Data
+    The players' scores and the list of images used will be saved in the MnA_Anime_Eyes directory's "scores" folder. Each time you open the program, a new folder to hold players' scores will be created there. The folder name is of the time when the program was opened, and the scores' filenames are of the time when an image is finished.
 
-        Format: MM-DD-YYYY_HH-MM-SS.ini
-
-    Unfortunately, at this time, the scores will not be left on the screen, so either show the .ini file or be aware when the last image is being shown. __The program will not tell you which image is the last one, though.__ I'll add that as something TODO.
+        Format for score file: MM-DD-YYYY_HH-MM-SS.ini
+        Format for folder name: MM-DD-YYYY_HH-MM-SS
 
 ##### Controls During a Round
-* c - correct
-* n - not correct
-* p - pause/unpause the pixelation. Will unpause if the image is cleared by "]" or "[".
-* f - enter/exit fullscreen for the monitor the program's located on
+* y - correct answer
+* n - incorrect answer
+* p - pause/unpause the pixelation. Will unpause if the image is cleared by "]".
 * ] - makes the image clear. press again to go to the next image
-* esc or q - quit the game
+* q - quit the game
 
 ### Image Checking Mode
 This mode is what this program was like before Version 0.8.0.
@@ -145,7 +144,7 @@ If nobody gets the image by the time it's clear, press ']' to go the next image.
 * f - enter/exit fullscreen for the monitor the program's located on
 * ] - start viewing images. makes the image clear. press again to go to the next image
 * [ - makes the image clear. press again to go to the previous image
-* esc or q - quit the game
+* q - quit the game
 
 ## Notes
 * This version is hardcoded to start with a beginning pixel size of 100
@@ -158,17 +157,32 @@ For the three things above, you can change those after the program loads up.
 * Original program: [ShippoSearch by Nur Monson](https://github.com/samiamwork/ShippoSearch)
 
     Most of this program's functionality is based off of ShippoSearch and trying to replicate it. The image pixelation used in ShippoSearch is from a Mac OSX library, so I had to try and replicate it using shaders...
-    
+
 * Chime sound: [hypocore on freesound.org](https://www.freesound.org/people/hypocore/sounds/164088/)
+
 * Rounded rectangle shape: [Robin on LOVE2D Forums](https://love2d.org/forums/viewtopic.php?t=11511)
+
 * Middleclass Lua file: [kikito](https://github.com/kikito/middleclass)
+
 * Help with the shader: Andrew Elliott
+
 * Everything else: [Phyllis Douglas](http://twitter.com/goofanader)
 
 ## To-Do
 - [See the issue tracker for a list of things Phyllis has to do!](https://github.com/goofanader/mna-anime-eyes/issues)
 
 ## Updates
+### 10/30/2015
+- "o" is now "y"
+- Player scores stay up at the beginning and end of a game round.
+- Game will pause and stop showing the image if Game Window loses focus during gameplay.
+- You can edit players' scores during a game, but it's very buggy and I'd suggest not using it :(
+- The current image info is reprinted to the console when you exit the "Manage Players" menu during gameplay.
+- If the console window crashes, messages about what images are showing up, who's buzzed in and player scores will still show up. (Untested)
+- You can't use "ESC" to quit the game.
+- You can't fullscreen with "f" during a game when not in image checking mode.
+- Players' scores and current images are saved in folders each time the program is opened. The files are still in scores, but now they have their own individual folders marked by the time the program was opened.
+
 ### 10/27/2015
 - You can change pixel size and image time in the settings menu.
 - Players' scores are saved in the "scores" directory in the Save Directory.

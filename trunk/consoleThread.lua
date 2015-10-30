@@ -185,6 +185,7 @@ function beginGame(channel)
     printBeginGameMessage()
 
     local isWaitingForMessage = true
+    local currImage = ""
 
     -- look for "LostFocus" or "GameOver"
     while isWaitingForMessage do
@@ -196,6 +197,7 @@ function beginGame(channel)
             -- show options for editing players. ...I think?
             managePlayers(channel, true)
             printBeginGameMessage()
+            print(currImage)
           elseif action == "GameOver" then
             isWaitingForMessage = false
           elseif action:find("update || ") then
@@ -214,6 +216,7 @@ function beginGame(channel)
           elseif action:find("NextImage || ") then
             action = split(action, " || ")
             print(action[2])
+            currImage = action[2]
           elseif action:find("buzzedPlayer || ") then
             action = split(action, " || ")
             print("\t"..action[2].."'s Turn!")

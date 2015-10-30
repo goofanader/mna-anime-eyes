@@ -171,6 +171,14 @@ function love.load()
       love.filesystem.createDirectory(SCORES_DIRECTORY)
    end
 
+   saveDataDirectory = SCORES_DIRECTORY.."/"..os.date("%m-%d-%Y_%H-%M-%S", os.time())
+   local saveDataCorrectSlashDirectorySplit = split(saveDataDirectory, "/")
+   saveDataCorrectSlashDirectory = ""
+   for i = 1, #saveDataCorrectSlashDirectorySplit do
+     saveDataCorrectSlashDirectory = saveDataCorrectSlashDirectory..saveDataCorrectSlashDirectorySplit[i]..SLASHES
+   end
+   love.filesystem.createDirectory(saveDataDirectory)
+
    local directory = IMAGES_DIRECTORY
    testImgNames = loadImageFolder(directory)
    testImg = {}
@@ -712,6 +720,9 @@ function love.update(dt)
          -- set guesser to the first person in the guessers list
          guesser = guessers[1]
          gameChannel:push("buzzedPlayer || "..guesser.name)
+         if consoleThread and not consoleThread:isRunning() then
+           print("\t"..guesser.name.."'s Turn!")
+         end
       end
    end
 end
@@ -739,7 +750,7 @@ function love.keypressed(key, isrepeat)
 
    if key == '[' and isCheckingImages then -- move to previous image
       moveToNextImage(-1, 0)
-   elseif key == ']' and not isEndGame then -- move to next image
+   elseif key == ']' and ((not isCheckingImages and not isEndGame) or (isCheckingImages)) then -- move to next image
       moveToNextImage(1, #testImgNames + 1)
    end
 
@@ -767,6 +778,9 @@ function love.keypressed(key, isrepeat)
 
      imageGuessers = contestantPointIndex
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
+     if consoleThread and not consoleThread:isRunning() then
+       print("\t"..guesser.name.." won "..currentPoints.." point(s)! They now have "..guesser.points)
+     end
 
      playSound(correctSFX)
 
@@ -784,6 +798,9 @@ function love.keypressed(key, isrepeat)
 
      imageGuessers[tonumber(guesser.index)] = guesser
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
+     if consoleThread and not consoleThread:isRunning() then
+       print("\t"..guesser.name.." lost "..currentPoints.." point(s)... They now have "..guesser.points)
+     end
 
      playSound(wrongSFX)
 
@@ -822,6 +839,7 @@ end
 -- Depends on the increment value and the endIndex given.
 function moveToNextImage(increment, endIndex)
    if gameTime >= imgTime or isEndGame then --go to the next image
+      saveScores(false)
       currImgIndex = currImgIndex + increment
       imageGuessers = {}
       guesser = nil
@@ -869,7 +887,8 @@ function moveToNextImage(increment, endIndex)
    end
 end
 
-function saveScores()
+function saveScores(isEndOfGame)
+  if isEndOfGame == nil then isEndOfGame = true end
   --[[table.sort(contestantPointsSorted,
      function(a, b)
         -- if the points are equal, sort by name
@@ -882,14 +901,16 @@ function saveScores()
      end
   )]]
   -- save the scores of the players
-  local filename = SCORES_DIRECTORY.."/"..os.date("%m-%d-%Y_%H-%M-%S", os.time()) .. ".ini"
-  local correctSlashFilename = split(filename, "/")
-  correctSlashFilename = correctSlashFilename[1]..SLASHES..correctSlashFilename[2]
+  local filenameOnly = os.date("%m-%d-%Y_%H-%M-%S", os.time()) .. ".ini"
+  local filename = saveDataDirectory.."/"..filenameOnly
+  local correctSlashFilename = saveDataCorrectSlashDirectory..filenameOnly--[[split(filename, "/")
+  correctSlashFilename = correctSlashFilename[1]..SLASHES..correctSlashFilename[2]]
 
   local saveData = love.filesystem.newFile(filename)
   local passed, errMsg = saveData:open("w")
 
   if passed then
+    local endImageIndex = currImgIndex <= #testImgNames and currImgIndex or #testImgNames
     -- write the scores
     saveData:write("[PlayerScores]\r\n")
     for i = 1, #contestantPointsSorted do
@@ -897,19 +918,24 @@ function saveScores()
       saveData:write("\""..player.name.."\"="..player.points.."\r\n")
     end
 
-    saveData:write("[Images]\r\n")
-    for i = 1, #testImgNames do
+    saveData:write("[CompletedImages]\r\n")
+    for i = 1, endImageIndex do
+      saveData:write("\"Image"..i.."\"=\""..split(testImgNames[i], "/")[2].."\"\r\n")
+    end
+
+    saveData:write("[ToDoImages]\r\n")
+    for i = endImageIndex + 1, #testImgNames do
       saveData:write("\"Image"..i.."\"=\""..split(testImgNames[i], "/")[2].."\"\r\n")
     end
 
     saveData:write("[Settings]\r\n")
     saveData:write("\"startingPixSize\"="..startingPixSize.."\r\n")
     saveData:write("\"imgTime\"="..imgTime.."\r\n")
-    saveData:write("\"triviaButtons\"="..triviaButtons:getName().."\r\n")
+    saveData:write("\"triviaButtons\"=\""..(triviaButtons and triviaButtons:getName() or "null").."\"\r\n")
 
     saveData:close()
 
-    print("Player scores saved. You can view the scores at "..getCorrectSlashSaveDirectory()..correctSlashFilename..".")
+    if isEndOfGame then print("Player scores saved. You can view the scores at "..getCorrectSlashSaveDirectory()..correctSlashFilename..".") end
   else
     print("Could not create save data of players' scores. Error message: "..errMsg)
     print("Here are the scores outputted to console instead:")
