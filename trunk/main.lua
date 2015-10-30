@@ -201,6 +201,7 @@ function love.load()
    isImagePaused = false
    isGoingToNextImage = false
    isShowingPlayerMessage = false
+   hasToldConsoleOfSwitch = false
 
    local joysticks = love.joystick.getJoysticks()
    hasJoystick = #joysticks > 0
@@ -249,7 +250,7 @@ function love.load()
      f - enter/exit fullscreen for the monitor the program's located on
      ] - makes the image clear. press again to go to the next image
      [ - makes the image clear. press again to go to the previous image
-     esc or q - quit the game
+     q - quit the game
 ]])
    end
 
@@ -285,98 +286,110 @@ function love.draw()
    if triviaButtons == nil then transitionAlpha = 0 end
    local isShowingPoints = gameTime >= imgTime + (additionalTime + transitionTime)
 
-   -- if we haven't finished going through the images, pixelate the image
-   if not isEndGame --[[and not isShowingPoints]] then
-     love.graphics.setColor(255,255,255, math.max(100, 255 - transitionAlpha))
-      -- only use the shader if it's pixelating the image.
-      if not isEndOfImage then
-         love.graphics.setShader( s.shader )
+   if love.window.hasFocus() then
+      -- if we haven't finished going through the images, pixelate the image
+      if not isEndGame --[[and not isShowingPoints]] then
+        love.graphics.setColor(255,255,255, math.max(100, 255 - transitionAlpha))
+         -- only use the shader if it's pixelating the image.
+         if not isEndOfImage then
+            love.graphics.setShader( s.shader )
+         end
+
+         -- move and scale the image so it's in the center of the window, scaled to fit the window completely
+         love.graphics.push()
+         love.graphics.translate(transX, transY)
+         love.graphics.scale(scaling, scaling)
+
+         -- if it's the end of the image, print just the image, no shader
+         --[[if isEndOfImage then
+            love.graphics.setColor(255,255,255)
+         end]]
+         love.graphics.draw(testImg[currImgIndex], 0,0)
+
+         -- remove the graphics transformations
+         love.graphics.pop()
+
+         -- clear the shader
+         if not isEndOfImage then
+            love.graphics.setShader()
+         end
+
+      end
+      if not isCheckingImages and not isEndGame and transitionAlpha > 0 then
+        printPlayerScores(math.min(255, transitionAlpha))
       end
 
-      -- move and scale the image so it's in the center of the window, scaled to fit the window completely
-      love.graphics.push()
-      love.graphics.translate(transX, transY)
-      love.graphics.scale(scaling, scaling)
+      if not isEndGame and isShowingPlayerMessage then
+        if guesserTimer == nil then
+          guesserTimer = love.timer.getTime()
+        end
 
-      -- if it's the end of the image, print just the image, no shader
-      --[[if isEndOfImage then
-         love.graphics.setColor(255,255,255)
+        printPrettyMessage(firstToUpper(guesser.name).."'s Turn!", "center", math.max(0, 255 - (255 * (love.timer.getTime() - guesserTimer) / (messageTime * 1.0))))
+        
+      elseif not isEndGame then
+        guesserTimer = nil
+        isShowingPlayerMessage = false
+      end
+
+      -- print the FPS and filename at the top left corner
+      --[[if isTesting and not isImagePaused then
+         love.graphics.setColor( 50, 205, 50, 255 )
+         love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
       end]]
-      love.graphics.draw(testImg[currImgIndex], 0,0)
 
-      -- remove the graphics transformations
-      love.graphics.pop()
-
-      -- clear the shader
-      if not isEndOfImage then
-         love.graphics.setShader()
-      end
-
-   end
-   if not isCheckingImages and not isEndGame and transitionAlpha > 0 then
-     printPlayerScores(math.min(255, transitionAlpha))
-   end
-
-   if not isEndGame and isShowingPlayerMessage then
-     if guesserTimer == nil then
-       guesserTimer = love.timer.getTime()
-     end
-
-     printPrettyMessage(firstToUpper(guesser.name).."'s Turn!", "center", math.max(0, 255 - (255 * (love.timer.getTime() - guesserTimer) / (messageTime * 1.0))))
-     
-   elseif not isEndGame then
-     guesserTimer = nil
-     isShowingPlayerMessage = false
-   end
-
-   -- print the FPS and filename at the top left corner
-   --[[if isTesting and not isImagePaused then
-      love.graphics.setColor( 50, 205, 50, 255 )
-      love.graphics.print('fps: '..love.timer.getFPS() .. '\nFilename: ' .. justFilename(currImgName), 0, 0 )
-   end]]
-
-   --[[if isTesting then
-     love.graphics.setColor(50, 205, 50, 255)
-     local counter = 0
-     for index, player in pairs(contestantPointIndex) do
-       local newlines = ""
-       for i = 1, counter do
-         newlines = newlines.."\n"
-       end
-       love.graphics.print(newlines..tostring(player))
-       counter = counter + 1
-     end
-     love.graphics.setColor(255, 255, 255)
-   end]]
-
-   if isTesting then
-     printPrettyMessage(tostring(currentPoints).." Points Available", "top right")
-
-     -- show point bezier curve
-     --[[love.graphics.setColor( 50, 205, 50, 255 )
-     love.graphics.line(pointCurve:render())
-     love.graphics.setColor(255,255,255)]]
-   end
-
-   -- print which button paused the game
-   if isImagePaused then
       --[[if isTesting then
-        love.graphics.setColor( 50, 205, 50, 255 )
-        love.graphics.print(buttonString)
-        love.graphics.print("\nThe guesser is "..tostring(guesser))
-        love.graphics.setColor(255,255,255)
+        love.graphics.setColor(50, 205, 50, 255)
+        local counter = 0
+        for index, player in pairs(contestantPointIndex) do
+          local newlines = ""
+          for i = 1, counter do
+            newlines = newlines.."\n"
+          end
+          love.graphics.print(newlines..tostring(player))
+          counter = counter + 1
+        end
+        love.graphics.setColor(255, 255, 255)
       end]]
-   end
 
-   if isWaitingForPlayerButton ~= nil and love.window.hasFocus() then
-     local buttonMessage = firstToUpper(isWaitingForPlayerButton) .. ", press your button."
-     printPrettyMessage(buttonMessage)
-   end
+      if isTesting then
+        printPrettyMessage(tostring(currentPoints).." Points Available", "top right")
 
+        -- show point bezier curve
+        --[[love.graphics.setColor( 50, 205, 50, 255 )
+        love.graphics.line(pointCurve:render())
+        love.graphics.setColor(255,255,255)]]
+      end
+
+      -- print which button paused the game
+      if isImagePaused then
+         --[[if isTesting then
+           love.graphics.setColor( 50, 205, 50, 255 )
+           love.graphics.print(buttonString)
+           love.graphics.print("\nThe guesser is "..tostring(guesser))
+           love.graphics.setColor(255,255,255)
+         end]]
+      end
+
+      if isWaitingForPlayerButton ~= nil and love.window.hasFocus() then
+        local buttonMessage = firstToUpper(isWaitingForPlayerButton) .. ", press your button."
+        printPrettyMessage(buttonMessage)
+      end
+   else
+      if not isEndGame then 
+         printPlayerScores()
+         printPrettyMessage("Game Paused.")
+      end
+      
+   end
+   
+   if isEndGame then
+      printPlayerScores()
+   end
 end
 
 function printPlayerScores(alpha, font)
   --position = position or "center"
+  alpha = alpha or 255
   font = font or playersFont
   local prevFont = love.graphics.getFont()
   love.graphics.setFont(font)
@@ -607,6 +620,13 @@ function reloadImages()
 -- Updates the shader with the correct amount of time left for the picture.
 function love.update(dt)
    handleChannel()
+   
+   if not love.window.hasFocus() and not isEndGame and not hasToldConsoleOfSwitch then
+      gameChannel:push("LostFocus")
+      hasToldConsoleOfSwitch = true
+   elseif love.window.hasFocus() then
+      hasToldConsoleOfSwitch = false
+   end
 
    if isWantingGameToStart and love.window.hasFocus() then
      isWantingGameToStart = false
@@ -619,7 +639,7 @@ function love.update(dt)
      isGoingToNextImage = false
    end
 
-   if not isEndGame and --[[(not isImagePaused or gameTime >= imgTime)]]not isImagePaused then
+   if not isEndGame and --[[(not isImagePaused or gameTime >= imgTime)]]not isImagePaused and love.window.hasFocus() then
       gameTime = gameTime + dt
    end
 
@@ -708,18 +728,18 @@ end
 
 -- Handles keyboard presses.
 function love.keypressed(key, isrepeat)
-   if key == 'q' or key == 'escape' then -- quit program
+   if key == 'q' --[[or key == 'escape']] then -- quit program
       love.event.quit()
    end
 
-   if key == 'f' then -- set to fullscreen
+   if key == 'f' and isEndGame then -- set to fullscreen
       --love.window.setFullscreen(not love.window.getFullscreen(), "desktop")
       setFullscreen()
    end
 
    if key == '[' and isCheckingImages then -- move to previous image
       moveToNextImage(-1, 0)
-   elseif key == ']' then -- move to next image
+   elseif key == ']' and not isEndGame then -- move to next image
       moveToNextImage(1, #testImgNames + 1)
    end
 
@@ -741,7 +761,7 @@ function love.keypressed(key, isrepeat)
       toggleImagePause()
    end
 
-   if key == 'c' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- correct answer
+   if key == 'y' and triviaButtons ~= nil and not isEndGame and guesser ~= nil and transitionAlpha <= 0 then -- correct answer
      guesser.points = guesser.points + currentPoints
      contestantPointIndex[guesser.index].points = guesser.points
 

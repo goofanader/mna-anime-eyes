@@ -4,3 +4,4 @@ trunk/*.love
 trunk/*.exe
 trunk/*.bat
 NyankoSearch/
+release/NyankoSearch_*/

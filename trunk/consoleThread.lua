@@ -31,16 +31,17 @@ function split(str, pat)
    return t
 end
 
-function managePlayers(channel)
+function managePlayers(channel, isDuringGame)
   if channel ~= nil then
     print("Managing Players...")
     channel:push("players")
+    isDuringGame = isDuringGame or false
 
     local isManaging = true
 
     while isManaging do
       print("\nOptions (Choose one by entering the number, first letter, or full command):")
-      print("\t1. A[dd]: Add a player/Change a player's name")
+      print("\t1. A[dd]: Create a new player/Change a player's name")
       print("\t2. C[hange]: Edit a player's points")
       print("\t3. D[elete]: Remove a player from the game")
       print("\t4. L[ist]: List all players")
@@ -50,7 +51,7 @@ function managePlayers(channel)
       local option = trim(io.read()):lower()
 
       if option == "add" or option == "a" or option == "1" then
-        print("Player Name?")
+        print("Please note that adding a new player sets that buzzer to zero points.\nPlayer Name?")
         local playerName = trim(io.read())
         channel:push("add || "..playerName)
         print("Switch over to the video program and have the player press their button.")
@@ -67,13 +68,18 @@ function managePlayers(channel)
 
         local playerButton = getPlayerButton(playerName)
         if playerButton ~= nil then
-          print("Enter new point value:")
+          print("Their current point value:"..players[playerButton].points..". Enter new point value:")
           -- ERROR CHECK HERE!!!
           local newPoints = tonumber(trim(io.read()))
-          players[playerButton].points = newPoints
-          channel:push("edit || "..playerButton.." || "..newPoints)
+          
+          if newPoints ~= nil then
+             players[playerButton].points = newPoints
+             channel:push("edit || "..playerButton.." || "..newPoints)
 
-          print("Player "..playerName.." now has "..newPoints.." points.")
+             print("Player "..playerName.." now has "..newPoints.." points.")
+          else
+             print("Invalid point value! Try again.")
+          end
         else
           print("Could not find player \""..playerName.."\"... Try again.")
         end
@@ -142,22 +148,27 @@ function sendMessage(beginningMessage, channelMessage)
   end
 end
 
+function printBeginGameMessage()
+   -- options for when the game is playing should be here.
+   print("\nControls for game:")
+   print("\ty: Correct Answer")
+   print("\tn: Incorrect Answer")
+   print("\tp: Toggle Pause")
+   print("\t]: Go to Next Image")
+
+   --print("\tf: Fullscreen (please pause the game before doing so)")
+   --print("\t[: Quick Skip Backwards")
+   --print("\ts\n\t\tStop Game")
+   print("\nSwitch to this screen to edit player scores if necessary.\n")
+ end
+ 
 function beginGame(channel)
   if channel ~= nil then
     print("To begin the game, please switch to the game board window.")
     channel:push("start")
     gameStartChannel:demand()
 
-    -- options for when the game is playing should be here.
-    print("\nControls for game:")
-    print("\tc: Correct")
-    print("\tn: Not Correct")
-    print("\tp: Toggle Pause")
-    print("\t]: Quick Skip Forwards")
-    print("\tf: Fullscreen (please pause the game before doing so)")
-    --print("\t[: Quick Skip Backwards")
-    --print("\ts\n\t\tStop Game")
-    --print("\nSwitch to this screen to edit player scores if necessary.\n")
+    printBeginGameMessage()
 
     local isWaitingForMessage = true
 
@@ -169,6 +180,8 @@ function beginGame(channel)
 
           if action == "LostFocus" then
             -- show options for editing players. ...I think?
+            managePlayers(channel, true)
+            printBeginGameMessage()
           elseif action == "GameOver" then
             isWaitingForMessage = false
           elseif action:find("update || ") then
@@ -178,9 +191,9 @@ function beginGame(channel)
             local newPoints = tonumber(action[3])
 
             if (newPoints < player.points) then
-              print("\t"..player.name.." lost "..tostring(player.points - newPoints).." point(s)...")
+              print("\t"..player.name.." lost "..tostring(player.points - newPoints).." point(s)... They now have "..newPoints)
             else
-              print("\t"..player.name.." won "..tostring(newPoints - player.points).." point(s)!")
+              print("\t"..player.name.." won "..tostring(newPoints - player.points).." point(s)! They now have "..newPoints)
             end
             print()
             players[action[2]].points = tonumber(action[3])
@@ -304,10 +317,12 @@ while consoleIsRunning do
   print("\t1. Players: Manage players")
   print("\t2. S[tart]: Begin the round")
   print("\t3. R[eload]: Reload the image folder")
-  print("\t4. F[ullscreen]: Toggle fullscreen")
+  --print("\t4. F[ullscreen]: Toggle fullscreen")
   --print("\tP[ause]\n\t\tToggle pause")
-  print("\t5. Settings: Configure game settings")
-  print("\t6. Q[uit]: Exit the program")
+  print("\t4. Settings: Configure game settings")
+  print("\t5. Q[uit]: Exit the program")
+  
+  print("\nHow to toggle fullscreen: Switch to the Game Window and press 'f'.\n")
 
   local option = trim(io.read()):lower()
   --print(option.." : did it newline tho")
@@ -320,11 +335,11 @@ while consoleIsRunning do
     consoleIsRunning = beginGame(channel)
   elseif option == "reload" or option == "r" or option == "3" then
     consoleIsRunning = reloadImages(channel)
-  elseif option == "fullscreen" or option == "f" or option == "4" then
-    consoleIsRunning = setFullscreen(channel)
-  elseif option == "settings" or option == "5" then
+  --[[elseif option == "fullscreen" or option == "f" or option == "4" then
+    consoleIsRunning = setFullscreen(channel)]]
+  elseif option == "settings" or option == "4" then
     consoleIsRunning = manageSettings(channel)
-  elseif option == "quit" or option == "q" or option == "6" then
+  elseif option == "quit" or option == "q" or option == "5" then
     consoleIsRunning = exitProgram(channel)
   else
     print("Bad option, try again.")
