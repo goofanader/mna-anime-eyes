@@ -200,6 +200,7 @@ function love.load()
    isEndGame = true
    isImagePaused = false
    isGoingToNextImage = false
+   isShowingPlayerMessage = false
 
    local joysticks = love.joystick.getJoysticks()
    hasJoystick = #joysticks > 0
@@ -316,14 +317,16 @@ function love.draw()
      printPlayerScores(math.min(255, transitionAlpha))
    end
 
-   if not isEndGame and isImagePaused and guesser ~= nil then
+   if not isEndGame and isShowingPlayerMessage then
      if guesserTimer == nil then
        guesserTimer = love.timer.getTime()
      end
 
      printPrettyMessage(firstToUpper(guesser.name).."'s Turn!", "center", math.max(0, 255 - (255 * (love.timer.getTime() - guesserTimer) / (messageTime * 1.0))))
-   elseif not isEndGame and not isGamePaused then
+     
+   elseif not isEndGame then
      guesserTimer = nil
+     isShowingPlayerMessage = false
    end
 
    -- print the FPS and filename at the top left corner
@@ -663,6 +666,7 @@ function love.update(dt)
       if hasButtonDown then
          isImagePaused = true
          playSound(buzzedSFX)
+         isShowingPlayerMessage = true
 
          -- make a list of the guessers' indices for debug purposes
          for index, indivGuesser in ipairs(guessers) do
@@ -745,6 +749,9 @@ function love.keypressed(key, isrepeat)
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
 
      playSound(correctSFX)
+     
+     isShowingPlayerMessage = false
+     guesserTimer = nil
 
      if gameTime < imgTime then
        moveToNextImage(1, #testImgNames + 1)
@@ -759,6 +766,9 @@ function love.keypressed(key, isrepeat)
      gameChannel:push("update || "..guesser.index.." || "..guesser.points)
 
      playSound(wrongSFX)
+     
+     isShowingPlayerMessage = false
+     guesserTimer = nil
 
      if tablelen(imageGuessers) == tablelen(contestantPointIndex) and gameTime < imgTime then
        moveToNextImage(1, #testImgNames + 1)
