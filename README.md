@@ -116,10 +116,10 @@ The game will prompt you to use the Game Window as the currently-focused program
 7. Control will go back to the console.
 
 ##### Saved Data
-    The players' scores and the list of images used will be saved in the MnA_Anime_Eyes directory's "scores" folder. Each time you open the program, a new folder to hold players' scores will be created there. The folder name is of the time when the program was opened, and the scores' filenames are of the time when an image is finished.
+The players' scores and the list of images used will be saved in the MnA_Anime_Eyes directory's "scores" folder. Each time you open the program, a new folder to hold players' scores will be created there. The folder name is of the time when the program was opened, and the scores' filenames are of the time when an image is finished.
 
-        Format for score file: MM-DD-YYYY_HH-MM-SS.ini
-        Format for folder name: MM-DD-YYYY_HH-MM-SS
+    Format for score file: MM-DD-YYYY_HH-MM-SS.ini
+    Format for folder name: MM-DD-YYYY_HH-MM-SS
 
 ##### Controls During a Round
 * y - correct answer
