@@ -3,7 +3,9 @@ Created 9/26/2014 by Phyllis Douglas (goofanader@gmail.com, me@phyllis.li)
 
 Version: 0.8.1 (10/30/2015)
 
-Minna no Anime's Anime Eyes program, written in LOVE2D. Get the latest release version from the release folder. It contains executables for Windows x32/x64, Mac OSX, and Linux.
+Download the latest release: [Windows, Mac OSX, Linux](https://github.com/goofanader/mna-anime-eyes/releases/download/v0.8.1-alpha/NyankoSearch_10302015_1301.zip)
+
+Minna no Anime's Anime Eyes program, written in [LOVE2D](https://love2d.org). Get the latest release version from the release folder or from the latest git release. It contains executables for Windows x32/x64, Mac OSX, and Linux.
 
 Check out the club at http://minnanoanime.org
 
@@ -154,69 +156,10 @@ If nobody gets the image by the time it's clear, press ']' to go the next image.
 For the three things above, you can change those after the program loads up.
 
 ## Credits
-* Original program: [ShippoSearch by Nur Monson](https://github.com/samiamwork/ShippoSearch)
-
-    Most of this program's functionality is based off of ShippoSearch and trying to replicate it. The image pixelation used in ShippoSearch is from a Mac OSX library, so I had to try and replicate it using shaders...
-
-* Chime sound: [hypocore on freesound.org](https://www.freesound.org/people/hypocore/sounds/164088/)
-
-* Rounded rectangle shape: [Robin on LOVE2D Forums](https://love2d.org/forums/viewtopic.php?t=11511)
-
-* Middleclass Lua file: [kikito](https://github.com/kikito/middleclass)
-
-* Help with the shader: Andrew Elliott
-
-* Everything else: [Phyllis Douglas](http://twitter.com/goofanader)
+View the credits at [CREDITS.md](https://github.com/goofanader/mna-anime-eyes/blob/master/CREDITS.md).
 
 ## To-Do
 - [See the issue tracker for a list of things Phyllis has to do!](https://github.com/goofanader/mna-anime-eyes/issues)
 
 ## Updates
-### 10/30/2015
-- "o" is now "y"
-- Player scores stay up at the beginning and end of a game round.
-- Game will pause and stop showing the image if Game Window loses focus during gameplay.
-- You can edit players' scores during a game, but it's very buggy and I'd suggest not using it :(
-- The current image info is reprinted to the console when you exit the "Manage Players" menu during gameplay.
-- If the console window crashes, messages about what images are showing up, who's buzzed in and player scores will still show up. (Untested)
-- You can't use "ESC" to quit the game.
-- You can't fullscreen with "f" during a game when not in image checking mode.
-- Players' scores and current images are saved in folders each time the program is opened. The files are still in scores, but now they have their own individual folders marked by the time the program was opened.
-
-### 10/27/2015
-- You can change pixel size and image time in the settings menu.
-- Players' scores are saved in the "scores" directory in the Save Directory.
-- Console menus have numbers as well as the previous commands to make movement between menus easier.
-- Controls have changed: 'o' = 'c', 'x' = 'n'
-- Choose which joystick (buzzer) you want to use for the game at startup. Can optionally choose not to and play in "image checking" mode.
-
-### 10/25/2015
-- It's a game!!!! The functionality is there!!! Have fun!!!!!
-- Only the trivia buttons will work with the current iteration of the program.
-- Almost all control is diverted to a console. Please open the program via command line for Mac and Linux.
-- There are SFX.
-- A message pops up, letting everyone know who got the buzz in first.
-
-### 10/24/2015
-- Pausing the game and then hitting one of the "next image" buttons will unpause the game so that the next image will pixelate.
-- The console is used to manage players, start the game, among other things. Currently, only the trivia buttons, not the keyboard, can be used as buzzers.
-- Buzzers still do not act in the way that they should...
-
-### 9/26/2015
-- If the trivia buttons are hooked up to the computer, the buttons can pause and unpause the game. ...That's it though...
-
-### 11/2/2014
-- can pause the pixelation
-- when the image is revealed, the image is smoothed out (AKA it's not using Nearest Neighbor to render the image)
-- fixed some mathematical formulas so images show all of it, not just... some of it (I'm bad at math)
-- the given pixel size is consistent between images rather than changing based on the image size (...I'm bad at math.......)
-
-### 10/25/2014
-- can go to previous image
-- load and reload images from an external folder
-
-### 9/26/2014
-- initial creation
-- can go to next image
-- pictures were hardcoded into the program
-- pixel size set to 70 for Day 1
+View the changelog at [CHANGELOG.md](https://github.com/goofanader/mna-anime-eyes/blob/master/CHANGELOG.md).
