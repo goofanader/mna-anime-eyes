@@ -59,7 +59,7 @@ Only the trivia buttons will work with this iteration of the program. Control of
 ### Not Fixed
 - Buzzers still do not act in the way that they should...
 
-## 0.6.3 - 9/26/2015
+## [0.6.3] - 9/26/2015
 ### Added
 - If the trivia buttons are hooked up to the computer, the buttons can pause and unpause the game. ...That's it though...
 
@@ -90,4 +90,5 @@ initial creation
 [0.8.1]: https://github.com/goofanader/mna-anime-eyes/compare/v0.8.0-alpha...v0.8.1-alpha
 [0.8.0]: https://github.com/goofanader/mna-anime-eyes/compare/8a0260a35591618a6b1e4aa68ac4a2df6a4c9b21...v0.8.0-alpha
 [0.7.0]: https://github.com/goofanader/mna-anime-eyes/compare/2b703fb6fa55a6937377163e97d4e4a3120a18b5...8a0260a35591618a6b1e4aa68ac4a2df6a4c9b21
-[0.6.4]: https://github.com/olivierlacan/keep-a-changelog/compare/46cfa039eb0b4343f7f60d271de8e3c242ca1beb...2b703fb6fa55a6937377163e97d4e4a3120a18b5
+[0.6.4]: https://github.com/goofanader/mna-anime-eyes/compare/46cfa039eb0b4343f7f60d271de8e3c242ca1beb...2b703fb6fa55a6937377163e97d4e4a3120a18b5
+[0.6.3]: https://github.com/goofanader/mna-anime-eyes/compare/a587c4818fea9528ac59942084e4527ca37893c2...46cfa039eb0b4343f7f60d271de8e3c242ca1beb

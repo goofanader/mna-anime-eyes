@@ -11,4 +11,6 @@
 
 * Help with the shader: Andrew Elliott
 
+* CHANGELOG format help: [olivierlacan's Keep a Changelog site](http://keepachangelog.com/)
+
 * Everything else: [Phyllis Douglas](http://twitter.com/goofanader)
